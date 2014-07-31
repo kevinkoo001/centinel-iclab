@@ -120,26 +120,28 @@ class ConfigurableDNSExperiment(Experiment):
             "timeout": self.timeout
         }
         ans = ""
-
+        dns_records = []
         if self.isIp(self.host):
             try:
                 addr = reversename.from_address(self.host)
                 answers = dns.resolver.query(addr, "PTR")
                 result["record_type"] = "PTR"
-                for x in range(0, len(answers)):
-                    ans += str(answers[x])
-                    if x != len(answers) - 1:
-                        ans += ", "
+                for i in answers.response.answer:
+                    logger.log("s", i.to_text())
+                    dns_records.append(i.to_text())
             except Exception as e:
                 logger.log("e", "Error querying PTR records for Ip " + self.host + " (" + str(e) + ")")
         elif self.record == 'A':
             try:
                 res = dns.resolver.query(self.host, self.record)
                 for i in res.response.answer:
-                    if ans == "":
-                        ans = i.to_text()
+                    if "\n" in i.to_text():
+                        for resp in i.to_text().split("\n"):
+                            logger.log("s", resp)
+                            dns_records.append(resp)
                     else:
-                        ans = ans + ", " + i.to_text()
+                        logger.log("s", i.to_text())
+                        dns_records.append(i.to_text())
             except Exception as e:
                 logger.log("e", "Error querying " + self.record + " record for " + self.host + " (" + str(e) + ")")
                 return
@@ -148,10 +150,9 @@ class ConfigurableDNSExperiment(Experiment):
                 query = dns.message.make_query(self.host, self.record)
                 response = dns.query.udp(query, self.resolver, timeout=self.timeout)
                 for answer in response.answer:
-                    if ans == "":
-                        ans = answer.to_text()
-                    else:
-                        ans += ", " + answer.to_text()
+                    dns_records.append(answer.to_text())
+                    logger.log("s", answer.to_text())
+                print(str(dns_records))
             except dns.exception.Timeout:
                 logger.log("e", "Query Timed out for " + self.host)
                 ans = "Timeout"
@@ -160,13 +161,15 @@ class ConfigurableDNSExperiment(Experiment):
                 ans = "Error"
 
         if ans != "Error":
-            if ans == "":
+            if len(dns_records) == 0:
                 ans = self.record + " records unavailable for " + self.host
                 logger.log("i", ans)
-            else:
-                logger.log("s", ans)
 
-        result['record'] = ans
+        if len(dns_records) > 0:
+            ans = "Success"
+
+        result['record_response'] = ans
+        result['records'] = dns_records
 
         self.test_for_second_packet(result)
 
