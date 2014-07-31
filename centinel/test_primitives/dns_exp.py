@@ -152,7 +152,6 @@ class ConfigurableDNSExperiment(Experiment):
                 for answer in response.answer:
                     dns_records.append(answer.to_text())
                     logger.log("s", answer.to_text())
-                print(str(dns_records))
             except dns.exception.Timeout:
                 logger.log("e", "Query Timed out for " + self.host)
                 ans = "Timeout"

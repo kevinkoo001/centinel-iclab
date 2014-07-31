@@ -72,7 +72,6 @@ class ConfigurableTracerouteExperiment(Experiment):
         try:
             t = self.start_hop
             finalIp = "Placeholder"
-            complete_traceroute = ""
             logger.log("i", "Conducting traceroute on " + self.host)
             for t in range(self.start_hop, self.max_hops + 1):
                 process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
@@ -97,15 +96,13 @@ class ConfigurableTracerouteExperiment(Experiment):
                 temp_results["ip"] = ip
                 temp_results["reverse_dns"] = reverseDns
                 traceroute_results.append(temp_results)
-                complete_traceroute += ip + ";" + reverseDns
                 if ip == "Not Found" and reverseDns != "Not Found":
                     pass
                 if ip == finalIp or t == self.max_hops:
                     logger.log("s", "Finished Traceroute")
                     break
-                else:
-                    complete_traceroute += "->"
-            results["Hops"] = t
+                    # TODO remove now redundant complete_traceroute variable
+            results["hops"] = t
             results["traceroute"] = traceroute_results
         except Exception as e:
             logger.log("e", "Error occured in traceroute for " + self.host + ": " + str(e))
