@@ -34,12 +34,13 @@ import base64
 conf = server_conf()
 
 class Server:
-    def __init__(self, local = False, sock=None):
+    def __init__(self, local = False, disable_tls=False, sock=None):
 	if sock is None:
 	    #create an INET, STREAMing socket
     	    self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	else:
 	    self.sock = sock
+	self.disable_tls = disable_tls
 	self.sock.bind(('0.0.0.0', int(conf['server_port'])))
 	self.sock.listen(5)
 
@@ -286,7 +287,16 @@ class Server:
 		(newsocket, address) = self.sock.accept()
 
 		#TLS wrap
-		clientsocket = ssl.wrap_socket(newsocket, server_side=True, certfile=conf["server_certificate"], keyfile=conf["server_key"], ssl_version=ssl.PROTOCOL_TLSv1)
+		if not self.disable_tls:
+		    try:
+			clientsocket = ssl.wrap_socket(newsocket, server_side=True, certfile=conf["server_certificate"], keyfile=conf["server_key"], ssl_version=ssl.PROTOCOL_TLSv1)
+		    except Exception as e:
+			log("e", "Error wrapping connection in TLS: " + str(e), address)
+			if newsocket:
+			    newsocket.close()
+			continue
+		else:
+		    clientsocket = newsocket
 
 		self.clientsockets.append(clientsocket)
 		log("s", "Got a connection.", address = address)
@@ -667,7 +677,7 @@ class Server:
 	    try:
 		self.send_fixed(clientsocket, address, "a")
 		self.send_dyn(clientsocket, address, self.public_key)
-		client_pub_key = self.receive_rsa_crypt(clientsocket, address, self.private_key)
+		client_pub_key = self.receive_rsa_crypt(clientsocket, address, self.private_key, show_progress=False)
 		self.send_rsa_crypt(clientsocket, address, identity, client_pub_key) #size is usually 5 characters (it is easy to write down and/or remember)
 		of = open(os.path.join(conf['client_keys_dir'], identity), "w")
 		of.write(client_pub_key)
