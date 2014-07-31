@@ -168,6 +168,7 @@ class ConfigurableDNSExperiment(Experiment):
         if len(dns_records) > 0:
             ans = "Success"
 
+        result['records_received'] = len(dns_records)
         result['record_response'] = ans
         result['records'] = dns_records
 
