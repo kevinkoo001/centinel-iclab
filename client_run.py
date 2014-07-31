@@ -32,28 +32,28 @@ def run_exp(selection):
 
 def update_check():
     global last_checked_for_updates
-    log("i", 'Checking for updates...')
+    #log("i", 'Checking for updates...')
     if not serverconn.check_for_updates():
 	last_checked_for_updates = datetime.now()
-	log("i", "Already running the latest version.")
+	#log("i", "Already running the latest version.")
     else:
 	raise UpdateException
 
 def sync_res():
     global results_last_synced
-    log("i", 'Starting results sync.')
+    #log("i", 'Starting results sync.')
     serverconn.sync_results()
     results_last_synced = datetime.now()
 
 def sync_exp():
     global experiments_last_synced
-    log("i", 'Starting experiment sync.')
+    #log("i", 'Starting experiment sync.')
     serverconn.sync_experiments()
     experiments_last_synced = datetime.now()
 
 def send_logs():
     global logs_last_sent
-    log("i", 'Sending logs.')
+    #log("i", 'Sending logs.')
     serverconn.send_logs()
     logs_last_sent = datetime.now()
 

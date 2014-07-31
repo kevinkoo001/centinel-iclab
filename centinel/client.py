@@ -476,7 +476,8 @@ class ServerConnection:
 	if total:
 	    log("s", "Sending logs complete (%d/%d were successful)." %(successful, total))
 	else:
-	    log("i", "Sending logs complete (nothing sent).")
+	    pass
+	    #log("i", "Sending logs complete (nothing sent).")
 
     def sync_results(self):
 	successful = 0
@@ -502,7 +503,8 @@ class ServerConnection:
 	if total:
 	    log("s", "Sync complete (%d/%d were successful)." %(successful, total))
 	else:
-	    log("i", "Sync complete (nothing sent).")
+	    pass
+	    #log("i", "Sync complete (nothing sent).")
 
 
     def sync_experiments(self):
