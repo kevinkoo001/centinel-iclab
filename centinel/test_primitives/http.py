@@ -93,6 +93,8 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         result["host"] = self.host
         if "body" not in result["response"]:
             logger.log("e", "No HTTP Response from " + self.whole_url)
+            result["failure"] = "No response"
+            self.results.append(result)
             return
         status = result["response"]["status"]
         is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]

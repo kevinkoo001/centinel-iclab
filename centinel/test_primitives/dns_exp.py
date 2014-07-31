@@ -131,6 +131,7 @@ class ConfigurableDNSExperiment(Experiment):
                     dns_records.append(i.to_text())
             except Exception as e:
                 logger.log("e", "Error querying PTR records for Ip " + self.host + " (" + str(e) + ")")
+                ans = "Error (" + str(e) + ")"
         elif self.record == 'A':
             try:
                 res = dns.resolver.query(self.host, self.record)
@@ -144,7 +145,7 @@ class ConfigurableDNSExperiment(Experiment):
                         dns_records.append(i.to_text())
             except Exception as e:
                 logger.log("e", "Error querying " + self.record + " record for " + self.host + " (" + str(e) + ")")
-                return
+                ans = "Error (" + str(e) + ")"
         else:
             try:
                 query = dns.message.make_query(self.host, self.record)
@@ -157,9 +158,9 @@ class ConfigurableDNSExperiment(Experiment):
                 ans = "Timeout"
             except Exception as e:
                 logger.log("e", "Error Querying " + self.record + " record for " + self.host + " (" + str(e) + ")")
-                ans = "Error"
+                ans = "Error (" + str(e) + ")"
 
-        if ans != "Error":
+        if not ans.startswith("Error ("):
             if len(dns_records) == 0:
                 ans = self.record + " records unavailable for " + self.host
                 logger.log("i", ans)
