@@ -3,6 +3,7 @@ import socket
 
 from centinel.experiment import Experiment
 
+
 class ConfigurableTCPConnectExperiment(Experiment):
     name = "conig_tcp_connect"
 
@@ -11,33 +12,42 @@ class ConfigurableTCPConnectExperiment(Experiment):
         self.results = []
         self.host = None
         self.port = None
-	self.args = dict()
+        self.args = dict()
 
     def run(self):
-	parser = ConfigParser.ConfigParser()
-	parser.read([self.input_file,])
-	if not parser.has_section('TCP'):
-	    return
+        parser = ConfigParser.ConfigParser()
+        parser.read([self.input_file, ])
+        if not parser.has_section('TCP'):
+            return
 
-	self.args.update(parser.items('TCP'))
-	
-	# one port for all of the URLs
- 	if 'port' in self.args.keys():
-	    self.port = self.args['port']
-	else:
+        self.args.update(parser.items('TCP'))
+
+        # one port for all of the URLs
+        if 'port' in self.args.keys():
+            self.port = self.args['port']
+        else:
             self.port = "80"
 
-	url_list = parser.items('URLS')
-	for url in url_list[0][1].split():
-	    self.host = url
+        url_list = parser.items('URLS')
+        for url in url_list[0][1].split():
+            temp_url = url
+            # get host name from url
+            if temp_url.startswith("http://") or temp_url.startswith("https://"):
+                split_url = temp_url.split("/")
+                for x in range(1, len(split_url)):
+                    if split_url[x] != "":
+                        temp_url = split_url[x]
+                        break
+            elif '/' in temp_url:
+                temp_url = temp_url.split("/")[0]
+            self.host = temp_url
             self.tcp_connect()
 
     def tcp_connect(self):
         result = {
-            "host" : self.host,
-            "port" : self.port
+            "host": self.host,
+            "port": self.port
         }
-
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.connect((self.host, int(self.port)))
