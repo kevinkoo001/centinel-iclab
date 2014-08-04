@@ -34,6 +34,7 @@ class ConfigurablePingExperiment(Experiment):
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
             temp_url = url
+            # Strip url down to host name
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
                 split_url = temp_url.split("/")
                 for x in range(1, len(split_url)):
@@ -46,11 +47,13 @@ class ConfigurablePingExperiment(Experiment):
             self.ping_test()
 
     def ping_test(self):
+
         result = {
             "host": self.host,
             "packets": self.packets,
             "timeout": self.timeout
         }
+
         logger.log("i", "Running ping to " + self.host)
         response = os.system("ping -c 1 -W " + str(self.timeout) + " " + self.host + " >/dev/null 2>&1")
 
@@ -58,6 +61,7 @@ class ConfigurablePingExperiment(Experiment):
             result["success"] = 'true'
             # Further experiment
             process = ['ping', self.host, '-c ' + str(self.packets), '-W ' + str(self.timeout)]
+            # Create a separate process so the ping output (which is a ton of output) doesn't flood the console. This also allows the output to be parsed
             console_response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
             ping_data = ""
             rtt_data = ""
@@ -79,6 +83,7 @@ class ConfigurablePingExperiment(Experiment):
             packetsTransmitted = -1
             packetsReceived = -1
             packetsLostPercentage = -1  # From 0 - 100
+            # Parse output to find different statistics
             for x in range(0, len(split_data) - 1):
                 if split_data[x] == "packets" and split_data[x + 1].replace(",", "") == "transmitted":
                     packetsTransmitted = int(split_data[x - 1])

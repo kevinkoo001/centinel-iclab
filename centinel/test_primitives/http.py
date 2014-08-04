@@ -85,19 +85,24 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         return host, path
 
     def http_request(self):
+
+        # Make HTTP Request
         if self.addHeaders:
             result = http.get_request(self.host, self.path, self.headers, self.ssl)
         else:
             result = http.get_request(self.host, self.path, ssl=self.ssl)
+
         result["whole_url"] = self.whole_url
         result["host"] = self.host
+        # If no response was received...
         if "body" not in result["response"]:
             logger.log("e", "No HTTP Response from " + self.whole_url)
             result["failure"] = "No response"
             self.results.append(result)
             return
+
         status = result["response"]["status"]
-        is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]
+        is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]  # Check for redirects
         result["redirect"] = str(is_redirecting)
         last_redirect = ""
         if is_redirecting:
@@ -105,8 +110,8 @@ class ConfigurableHTTPRequestExperiment(Experiment):
             try:
                 redirect_number = 1
                 redirect_result = None
-                while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") or "location" in redirect_result["response"]["headers"]):
-                    if redirect_number > 50:
+                while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") or "location" in redirect_result["response"]["headers"]):  # While there are more redirects...
+                    if redirect_number > 50:  # Break redirect after 50 redirects
                         logger.log("i", "Breaking redirect loop. Over 50 redirects")
                         break
                     if redirect_result is None:

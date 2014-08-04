@@ -44,6 +44,7 @@ class ConfigurableDNSExperiment(Experiment):
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
             temp_url = url
+            # get host name from url
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
                 split_url = temp_url.split("/")
                 for x in range(1, len(split_url)):
@@ -55,6 +56,7 @@ class ConfigurableDNSExperiment(Experiment):
             self.host = temp_url
             self.dns_test()
 
+    # Returns true of the string is an ip address
     def isIp(self, string):
         a = string.split('.')
         if len(a) != 4:
@@ -67,6 +69,8 @@ class ConfigurableDNSExperiment(Experiment):
                 return False
         return True
 
+    # Builds an A-Record DNS Packet
+    # This packet is used to test if there is another packet being sent by the censor
     def build_packet(self, url, record_type=0x0001):
         packet = struct.pack("!6H", random.randint(1, 65536), 256, 1, 0, 0, 0)
         split_url = url.split(".")
@@ -77,6 +81,7 @@ class ConfigurableDNSExperiment(Experiment):
         packet += struct.pack("!B2H", 0, int(record_type), 1)
         return packet
 
+    # Tests to see if another DNS Packet is being sent by sending an A-Record DNS Packet and listening twice
     def test_for_second_packet(self, result):
         packet = self.build_packet(self.host)
         try:
@@ -120,39 +125,30 @@ class ConfigurableDNSExperiment(Experiment):
             "timeout": self.timeout
         }
         ans = ""
-        dns_records = []
-        if self.isIp(self.host):
+        dns_records = []  # Array to store DNS Records
+        if self.isIp(self.host):  # If Ip is passed in instead of Url, default to PTR record
             try:
-                addr = reversename.from_address(self.host)
-                answers = dns.resolver.query(addr, "PTR")
+                addr = reversename.from_address(self.host)  # Get address
+                answers = dns.resolver.query(addr, "PTR")  # Query PTR Records
                 result["record_type"] = "PTR"
                 for i in answers.response.answer:
                     logger.log("s", i.to_text())
-                    dns_records.append(i.to_text())
+                    dns_records.append(i.to_text())  # Add the record to the list
             except Exception as e:
                 logger.log("e", "Error querying PTR records for Ip " + self.host + " (" + str(e) + ")")
-                ans = "Error (" + str(e) + ")"
-        elif self.record == 'A':
-            try:
-                res = dns.resolver.query(self.host, self.record)
-                for i in res.response.answer:
-                    if "\n" in i.to_text():
-                        for resp in i.to_text().split("\n"):
-                            logger.log("s", resp)
-                            dns_records.append(resp)
-                    else:
-                        logger.log("s", i.to_text())
-                        dns_records.append(i.to_text())
-            except Exception as e:
-                logger.log("e", "Error querying " + self.record + " record for " + self.host + " (" + str(e) + ")")
                 ans = "Error (" + str(e) + ")"
         else:
             try:
                 query = dns.message.make_query(self.host, self.record)
-                response = dns.query.udp(query, self.resolver, timeout=self.timeout)
+                response = dns.query.udp(query, self.resolver, timeout=self.timeout)  # Get the response of the query
                 for answer in response.answer:
-                    dns_records.append(answer.to_text())
-                    logger.log("s", answer.to_text())
+                    if "\n" in answer.to_text():  # Sometimes these records are separated by newlines in one answer
+                        for resp in answer.to_text().split("\n"):
+                            dns_records.append(resp)
+                            logger.log("s", resp)
+                    else:
+                        dns_records.append(answer.to_text())
+                        logger.log("s", answer.to_text())
             except dns.exception.Timeout:
                 logger.log("e", "Query Timed out for " + self.host)
                 ans = "Timeout"
@@ -165,7 +161,7 @@ class ConfigurableDNSExperiment(Experiment):
                 ans = self.record + " records unavailable for " + self.host
                 logger.log("i", ans)
 
-        if len(dns_records) > 0:
+        if len(dns_records) > 0:  # If there are records in the array
             ans = "Success"
 
         result['records_received'] = len(dns_records)

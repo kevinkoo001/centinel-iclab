@@ -4,7 +4,7 @@ import subprocess
 from centinel.experiment import Experiment
 from utils import logger
 
-
+# This traceroute works by pinging the host with incrementing TTLs
 class ConfigurableTracerouteExperiment(Experiment):
     name = "config_traceroute"
 
@@ -49,6 +49,7 @@ class ConfigurableTracerouteExperiment(Experiment):
             self.host = temp_url
             self.traceroute()
 
+    # Returns if the string is an ip address
     def isIp(self, string):
         a = string.split('.')
         if len(a) != 4:
@@ -62,20 +63,25 @@ class ConfigurableTracerouteExperiment(Experiment):
         return True
 
     def traceroute(self):
+
         results = {
             "host": self.host,
             "max_hops": self.max_hops,
             "start_hop": self.start_hop,
             "timeout": self.timeout
         }
-        traceroute_results = [] # Contains Dict("string", "string")
+
+        traceroute_results = []  # Contains Dict("string", "string")
         try:
             t = self.start_hop
             finalIp = "Placeholder"
             logger.log("i", "Conducting traceroute on " + self.host)
             for t in range(self.start_hop, self.max_hops + 1):
                 process = ['ping', self.host, '-c 1', '-t ' + str(t), '-W ' + str(self.timeout)]
+                # Ping in separate process
                 response = subprocess.Popen(process, stdout=subprocess.PIPE).communicate()[0]
+
+                # Parse the process output for information on the ping
                 if t == 1:
                     if response == "":
                         raise Exception("Host not available")
@@ -92,16 +98,15 @@ class ConfigurableTracerouteExperiment(Experiment):
                         ip = stripped
                     if '=' not in stripped and '.' in stripped and not self.isIp(stripped):
                         reverseDns = stripped
-                temp_results = {}
+                temp_results = {}  # Results for this hop of the traceroute
                 temp_results["ip"] = ip
                 temp_results["reverse_dns"] = reverseDns
                 traceroute_results.append(temp_results)
                 if ip == "Not Found" and reverseDns != "Not Found":
-                    pass
+                    pass  # May implement something here later to see what happened
                 if ip == finalIp or t == self.max_hops:
                     logger.log("s", "Finished Traceroute")
                     break
-                    # TODO remove now redundant complete_traceroute variable
             results["hops"] = t
             results["traceroute"] = traceroute_results
         except Exception as e:
