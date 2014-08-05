@@ -59,7 +59,9 @@ censorship.
     # [DNS]- Performs a DNS query on the list of URLs
 	 ---Parameters---
 	* timeout - the number of seconds before the dns request times out
-	* record - the dns record type ("A" by default though not compatible with every type of record)
+	* record_types - the dns record type ("A" by default though not compatible with every type of record)
+		* If you want to test for multiple records, separate each record type by space
+		* Example: "A AAAA RRSIG"
 	* resolver - the ip address of the dns resolver
 
     # [Ping] - Pings the list of urls and records the results (uses system ping)
@@ -91,7 +93,7 @@ censorship.
     [HTTP]
 
     [DNS]
-    record = A
+    record_types = A
     resolver = 8.8.8.8
 
     [Traceroute]
