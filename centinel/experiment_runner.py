@@ -239,12 +239,12 @@ def prep_results(operator, experiment_name):
     results = {}
     run_id = str(int(conf["run_id"]) + 1)
     ip = getmyip()
-    esttime = getESTTime()
+    # esttime = getESTTime()
     localtime = datetime.now().isoformat()
     country = geolocate(ip)[0]
     city = geolocate(ip)[1]
 
-    meta = { "est_time"		: esttime,
+    meta = { # "est_time"		: esttime,
 	     "local_time"	: localtime,
 	     "client_tag"   	: conf["client_tag"],
 	     "exp_name"		: experiment_name,
