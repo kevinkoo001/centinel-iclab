@@ -3,8 +3,9 @@ import os
 import utils.http as http
 import base64
 import socket
-from utils import logger
+import time
 
+from utils import logger
 from centinel.experiment import Experiment
 
 
@@ -120,14 +121,16 @@ class ConfigurableHTTPRequestExperiment(Experiment):
 
     def http_request(self):
         result = {}
+
         self.dns_test(result)
         # Make HTTP Request
+        start_time = time.time()
         if self.addHeaders:
             http_result = http.get_request(self.host, self.path, self.headers, self.ssl)
             result["request_headers"] = self.headers
         else:
             http_result = http.get_request(self.host, self.path, ssl=self.ssl)
-
+        end_time = time.time()
         all_redirects = []  # Contains dict("string", "string")
         result["request_url"] = self.whole_url
         result["host"] = self.host
@@ -144,6 +147,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         first_response = {}  # Will count as redirect 0
         first_response["response_url"] = self.whole_url
         first_response["response_number"] = 0
+        first_response["response_time_taken_seconds"] = end_time - start_time
         headers = http_result["response"]["headers"]
         headers["reason"] = http_result["response"]["reason"]  # Add reason to headers
         first_response["response_headers.b64"] = base64.b64encode(str(headers))
@@ -177,10 +181,13 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                     else:
                         logger.log("i", "Redirecting from " + last_redirect + " to " + redirect_url)
                     host, path = self.get_host_and_path_from_url(redirect_url)
+                    start_time = time.time()
                     redirect_result = http.get_request(host, path, ssl=ssl)
+                    end_time = time.time()
                     temp_results = {}
                     temp_results["response_url"] = redirect_url
                     temp_results["response_number"] = redirect_number
+                    temp_results["response_time_taken_seconds"] = (end_time - start_time)
                     headers = redirect_result["response"]["headers"]
                     headers["reason"] = redirect_result["response"]["reason"]  # Add reason to headers
                     temp_results["response_headers.b64"] = base64.b64encode(str(headers))
