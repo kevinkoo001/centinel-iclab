@@ -1,6 +1,7 @@
 import ConfigParser
 import os
 import subprocess
+import socket
 from centinel.experiment import Experiment
 from utils import logger
 
@@ -49,6 +50,26 @@ class ConfigurableTracerouteExperiment(Experiment):
             self.host = temp_url
             self.traceroute()
 
+     # Records target_domain, target_ip address, and target_dns_success
+    def dns_test(self, results):
+        target_ip_address = ""
+        target_domain = self.host
+        if self.isIp(self.host):
+            target_ip_address = self.host
+            target_domain = self.host
+            target_dns_success = True
+        else:
+            try:
+                target_ip_address = socket.gethostbyname(self.host)
+                target_dns_success = True
+            except Exception as e:
+                target_dns_success = False
+                results["target_dns_error_text"] = str(e)
+
+        results["target_ip_address"] = target_ip_address
+        results["target_dns_success"] = str(target_dns_success)
+        results["target_domain"] = target_domain
+
     # Returns if the string is an ip address
     def isIp(self, string):
         a = string.split('.')
@@ -70,6 +91,8 @@ class ConfigurableTracerouteExperiment(Experiment):
             "start_hop": self.start_hop,
             "timeout": self.timeout
         }
+
+        self.dns_test(results)
 
         traceroute_results = []  # Contains Dict("string", "string")
         try:
@@ -99,6 +122,7 @@ class ConfigurableTracerouteExperiment(Experiment):
                     if '=' not in stripped and '.' in stripped and not self.isIp(stripped):
                         reverseDns = stripped
                 temp_results = {}  # Results for this hop of the traceroute
+                temp_results["hop_number"] = str(t)
                 temp_results["ip"] = ip
                 temp_results["reverse_dns"] = reverseDns
                 traceroute_results.append(temp_results)
@@ -107,9 +131,9 @@ class ConfigurableTracerouteExperiment(Experiment):
                 if ip == finalIp or t == self.max_hops:
                     logger.log("s", "Finished Traceroute")
                     break
-            results["hops"] = t
+            results["total_hops"] = t
             results["traceroute"] = traceroute_results
         except Exception as e:
             logger.log("e", "Error occured in traceroute for " + self.host + ": " + str(e))
-            results["error"] = str(e)
+            results["error_text"] = str(e)
         self.results.append(results)

@@ -1,7 +1,7 @@
 import ConfigParser
 import os
 import subprocess
-
+import socket
 from centinel.experiment import Experiment
 from utils import logger
 
@@ -46,14 +46,47 @@ class ConfigurablePingExperiment(Experiment):
             self.host = temp_url
             self.ping_test()
 
+
+     # Returns true of the string is an ip address
+    def isIp(self, string):
+        a = string.split('.')
+        if len(a) != 4:
+            return False
+        for x in a:
+            if not x.isdigit():
+                return False
+            i = int(x)
+            if i < 0 or i > 255:
+                return False
+        return True
+
+    # Records target_domain, target_ip address, and target_dns_success
+    def dns_test(self, results):
+        target_ip_address = ""
+        target_domain = self.host
+        if self.isIp(self.host):
+            target_ip_address = self.host
+            target_domain = self.host
+            target_dns_success = True
+        else:
+            try:
+                target_ip_address = socket.gethostbyname(self.host)
+                target_dns_success = True
+            except Exception as e:
+                target_dns_success = False
+                results["target_dns_error_text"] = str(e)
+
+        results["target_ip_address"] = target_ip_address
+        results["target_dns_success"] = str(target_dns_success)
+        results["target_domain"] = target_domain
+
     def ping_test(self):
 
         result = {
             "host": self.host,
-            "packets": self.packets,
             "timeout": self.timeout
         }
-
+        self.dns_test(result)
         logger.log("i", "Running ping to " + self.host)
         response = os.system("ping -c 1 -W " + str(self.timeout) + " " + self.host + " >/dev/null 2>&1")
 
@@ -89,8 +122,6 @@ class ConfigurablePingExperiment(Experiment):
                     packetsTransmitted = int(split_data[x - 1])
                 if split_data[x].replace(",", "") == "received":
                     packetsReceived = int(split_data[x - 1])
-                if split_data[x].replace(",", "") == "loss" and split_data[x - 1] == "packet":
-                    packetsLostPercentage = int(split_data[x - 2].replace("%", ""))
             split_data = rtt_data.split()
             for string in split_data:
                 if '/' in string and '.' in string:
@@ -103,9 +134,8 @@ class ConfigurablePingExperiment(Experiment):
                 for part in response_data:
                     if part.startswith("ttl"):
                         result["ttl"] = part.split("=")[1]
-            result["sent"] = str(packetsTransmitted)
-            result["received"] = str(packetsReceived)
-            result["percent_lost"] = str(packetsLostPercentage)
+            result["packets_sent"] = str(packetsTransmitted)
+            result["packets_received"] = str(packetsReceived)
         else:
             result["success"] = 'false'
         self.results.append(result)

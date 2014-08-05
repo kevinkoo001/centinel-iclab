@@ -2,6 +2,7 @@ import ConfigParser
 import os
 import utils.http as http
 import base64
+import socket
 from utils import logger
 
 from centinel.experiment import Experiment
@@ -84,38 +85,88 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         host = temp_url
         return host, path
 
-    def http_request(self):
+    # Returns true of the string is an ip address
+    def isIp(self, string):
+        a = string.split('.')
+        if len(a) != 4:
+            return False
+        for x in a:
+            if not x.isdigit():
+                return False
+            i = int(x)
+            if i < 0 or i > 255:
+                return False
+        return True
 
+    # Records target_domain, target_ip address, and target_dns_success
+    def dns_test(self, results):
+        target_ip_address = ""
+        target_domain = self.host
+        if self.isIp(self.host):
+            target_ip_address = self.host
+            target_domain = self.host
+            target_dns_success = True
+        else:
+            try:
+                target_ip_address = socket.gethostbyname(self.host)
+                target_dns_success = True
+            except Exception as e:
+                target_dns_success = False
+                results["target_dns_error_text"] = str(e)
+
+        results["target_ip_address"] = target_ip_address
+        results["target_dns_success"] = str(target_dns_success)
+        results["target_domain"] = target_domain
+
+    def http_request(self):
+        result = {}
+        self.dns_test(result)
         # Make HTTP Request
         if self.addHeaders:
-            result = http.get_request(self.host, self.path, self.headers, self.ssl)
+            http_result = http.get_request(self.host, self.path, self.headers, self.ssl)
+            result["request_headers"] = self.headers
         else:
-            result = http.get_request(self.host, self.path, ssl=self.ssl)
+            http_result = http.get_request(self.host, self.path, ssl=self.ssl)
 
-        result["whole_url"] = self.whole_url
+        all_redirects = []  # Contains dict("string", "string")
+        result["request_url"] = self.whole_url
         result["host"] = self.host
+        result["request_path"] = self.path
+        result["request_method"] = http_result["request"]["method"]
         # If no response was received...
-        if "body" not in result["response"]:
+        if "body" not in http_result["response"]:
             logger.log("e", "No HTTP Response from " + self.whole_url)
             result["failure"] = "No response"
             self.results.append(result)
             return
 
-        status = result["response"]["status"]
-        is_redirecting = str(status).startswith("3") or "location" in result["response"]["headers"]  # Check for redirects
+        status = http_result["response"]["status"]
+        first_response = {}  # Will count as redirect 0
+        first_response["response_url"] = self.whole_url
+        first_response["response_number"] = 0
+        headers = http_result["response"]["headers"]
+        headers["reason"] = http_result["response"]["reason"]  # Add reason to headers
+        first_response["response_headers.b64"] = base64.b64encode(str(headers))
+        first_response["response_status"] = str(http_result["response"]["status"])
+        first_response["response_body.b64"] = base64.b64encode(http_result["response"]["body"])
+
+        is_redirecting = str(status).startswith("3") and "location" in http_result["response"]["headers"]  # Check for redirects
+        if is_redirecting:
+            first_response["response_redirect_url"] = http_result["response"]["headers"]["location"]
+        all_redirects.append(first_response)
         result["redirect"] = str(is_redirecting)
         last_redirect = ""
+        redirect_number = 1
         if is_redirecting:
-            all_redirects = [] # Contains dict("string", "string")
             try:
-                redirect_number = 1
+
                 redirect_result = None
-                while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") or "location" in redirect_result["response"]["headers"]):  # While there are more redirects...
+                while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") and "location" in redirect_result["response"]["headers"]):  # While there are more redirects...
                     if redirect_number > 50:  # Break redirect after 50 redirects
                         logger.log("i", "Breaking redirect loop. Over 50 redirects")
                         break
                     if redirect_result is None:
-                        redirect_url = result["response"]["headers"]["location"]
+                        redirect_url = http_result["response"]["headers"]["location"]
                     else:
                         redirect_url = redirect_result["response"]["headers"]["location"]
                     ssl = redirect_url.startswith("https://")
@@ -128,18 +179,21 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                     host, path = self.get_host_and_path_from_url(redirect_url)
                     redirect_result = http.get_request(host, path, ssl=ssl)
                     temp_results = {}
-                    temp_results["headers"] = redirect_result["response"]["headers"]
-                    temp_results["status"] = redirect_result["response"]["status"]
-                    temp_results["body"] = base64.b64encode(redirect_result["response"]["body"])
+                    temp_results["response_url"] = redirect_url
+                    temp_results["response_number"] = redirect_number
+                    headers = redirect_result["response"]["headers"]
+                    headers["reason"] = redirect_result["response"]["reason"]  # Add reason to headers
+                    temp_results["response_headers.b64"] = base64.b64encode(str(headers))
+                    temp_results["response_status"] = str(redirect_result["response"]["status"])
+                    temp_results["response_body.b64"] = base64.b64encode(redirect_result["response"]["body"])
+                    if "location" in redirect_result["response"]["headers"] and str(redirect_result["response"]["status"]).startswith("3"):
+                        temp_results["response_redirect_url"] = redirect_result["response"]["headers"]["location"]
                     last_redirect = redirect_url
                     redirect_number += 1
                     all_redirects.append(temp_results)
-                if is_redirecting:
-                    result["redirects"] = all_redirects
-                    result["total_redirects"] = str(redirect_number - 1)
-
             except Exception as e:
                 logger.log("e", "Http redirect failed: " + str(e))
                 return
-        result["response"]["body"] = base64.b64encode(result["response"]["body"])
+        result["responses"] = all_redirects
+        result["total_redirects"] = str(redirect_number - 1)
         self.results.append(result)
