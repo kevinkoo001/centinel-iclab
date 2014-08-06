@@ -192,7 +192,6 @@ class Server:
     	    except Exception as e:
 	        try:
 	    	    send_fixed(clientsocket, address, 'e')
-	    	    send_dyn(clientsocket, address, "Kobra authentication error.")
 		except:
 	    	    pass
 		if clientsocket:

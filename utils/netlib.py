@@ -162,7 +162,7 @@ Encrypted chunks are received one by one after that and
 decrypted using the given key. The resulting string is then
 hashed and verified using the received hash.
 """
-def receive_aes_crypt(self, clientsocket, address, decryption_key, show_progress=True):
+def receive_aes_crypt(clientsocket, address, decryption_key, show_progress=True):
     crypt = AESCipher(decryption_key)
     chunk_count = int(receive_dyn(clientsocket, address))
     received_digest = receive_dyn(clientsocket, address)
