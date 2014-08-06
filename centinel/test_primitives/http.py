@@ -21,6 +21,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         self.ssl = False
         self.headers = {}
         self.addHeaders = False
+        self.url = ""
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -52,6 +53,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         url_list = parser.items('URLS')
 
         for url in url_list[0][1].split():
+            self.url = url
             self.path = '/'
             self.host, self.path = self.get_host_and_path_from_url(url)
             self.whole_url = url
@@ -120,7 +122,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         results["target_domain"] = target_domain
 
     def http_request(self):
-        result = {}
+        result = {"url": self.url}
 
         self.dns_test(result)
         # Make HTTP Request

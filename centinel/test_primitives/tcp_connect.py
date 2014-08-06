@@ -12,6 +12,7 @@ class ConfigurableTCPConnectExperiment(Experiment):
         self.host = None
         self.port = None
         self.args = dict()
+        self.url = ""
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -29,6 +30,7 @@ class ConfigurableTCPConnectExperiment(Experiment):
 
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
+            self.url = url
             temp_url = url
             # get host name from url
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
@@ -77,6 +79,7 @@ class ConfigurableTCPConnectExperiment(Experiment):
 
     def tcp_connect(self):
         result = {
+            "url": self.url,
             "host": self.host,
             "port": self.port
         }

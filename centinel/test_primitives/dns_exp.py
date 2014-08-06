@@ -20,6 +20,7 @@ class ConfigurableDNSExperiment(Experiment):
         self.resolver = "8.8.8.8"
         self.record_types = []
         self.timeout = 3
+        self.url = ""
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -50,6 +51,7 @@ class ConfigurableDNSExperiment(Experiment):
 
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
+            self.url = url
             temp_url = url
             # get host name from url
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
@@ -132,6 +134,7 @@ class ConfigurableDNSExperiment(Experiment):
                 record_type_string += ", "
 
         result = {
+            "url": self.url,
             "host": self.host,
             "resolver": self.resolver,
             "record_types": record_type_string,

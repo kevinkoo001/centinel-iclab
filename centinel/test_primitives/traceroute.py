@@ -13,6 +13,7 @@ class ConfigurableTracerouteExperiment(Experiment):
         self.input_file = input_file
         self.results = []
         self.args = dict()
+        self.url = ""
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -38,6 +39,7 @@ class ConfigurableTracerouteExperiment(Experiment):
             self.timeout = 3
 
         for url in url_list[0][1].split():
+            self.url = url
             temp_url = url
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
                 split_url = temp_url.split("/")
@@ -86,6 +88,7 @@ class ConfigurableTracerouteExperiment(Experiment):
     def traceroute(self):
 
         results = {
+            "url": self.url,
             "host": self.host,
             "max_hops": self.max_hops,
             "start_hop": self.start_hop,
