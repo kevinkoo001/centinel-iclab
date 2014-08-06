@@ -13,6 +13,7 @@ class ConfigurablePingExperiment(Experiment):
         self.input_file = input_file
         self.results = []
         self.args = dict()
+        self.url = ""
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -33,6 +34,7 @@ class ConfigurablePingExperiment(Experiment):
 
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
+            self.url = url
             temp_url = url
             # Strip url down to host name
             if temp_url.startswith("http://") or temp_url.startswith("https://"):
@@ -83,6 +85,7 @@ class ConfigurablePingExperiment(Experiment):
     def ping_test(self):
 
         result = {
+            "url": self.url,
             "host": self.host,
             "timeout": self.timeout
         }
