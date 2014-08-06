@@ -352,7 +352,7 @@ class ServerConnection:
 		while i > 0:
 		    try:
 			i = i - 1
-			exp_name = receive_md5_checked(self.serversocket, self.server_address, self.aes_secret, show_progress = False)
+			exp_name = receive_dyn(self.serversocket, self.server_address)
 			exp_content = receive_md5_checked(self.serversocket, self.server_address, show_progress = True)
 			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)

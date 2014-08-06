@@ -525,7 +525,7 @@ class Server:
 		for exp in updates:
 		    if exp:
 			changed = True
-			sendexp(clientsocket, address, client_tag, exp.split("%")[0])
+			self.sendexp(clientsocket, address, client_tag, exp.split("%")[0])
 
 		old_list = [x.split("%")[0] for x in client_exp_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_list(client_tag)] ]
 
@@ -552,7 +552,7 @@ class Server:
 		for exp_data in updates:
 		    if exp_data:
 			changed = True
-			sendexp_data(clientsocket, address, client_tag, exp_data.split("%")[0])
+			self.sendexp_data(clientsocket, address, client_tag, exp_data.split("%")[0])
 
 		old_list = [x.split("%")[0] for x in client_exp_data_list if x.split("%")[0] not in [y.split("%")[0] for y in self.current_exp_data_list(client_tag)] ]
 
