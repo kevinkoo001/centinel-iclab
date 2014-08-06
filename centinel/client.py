@@ -9,6 +9,7 @@ import random
 import string
 from os import listdir
 import StringIO
+import bz2
 import gzip
 import glob
 from datetime import datetime, timedelta
@@ -21,6 +22,7 @@ from utils.aescrypt import AESCipher
 from utils.colors import bcolors
 from utils.colors import update_progress
 from utils.logger import *
+from utils.netlib import *
 from client_config import client_conf
 from Crypto.Hash import MD5
 
@@ -51,10 +53,8 @@ class ServerConnection:
     						   )
 
 		self.serversocket.connect((address, self.server_port))
-
-		
 		self.connected = True
-		self.server_address = address
+		self.server_address = [ address, self.server_port ]
 		break
     	    except socket.error, (value,message): 
     		if self.serversocket: 
@@ -64,20 +64,7 @@ class ServerConnection:
 	if not self.connected:
 	    return False
 	else:
-	    log("s", "Connected to %s:%s." %(self.server_address, self.server_port) )
-		
-	try:
-	    kf = open(conf.c['server_public_rsa'])
-	    self.server_public_key = kf.read()
-	    kf.close()
-	    kf = open(conf.c['client_public_rsa'])
-	    self.my_public_key = kf.read()
-	    kf.close()
-	    kf = open(conf.c['client_private_rsa'])
-	    self.my_private_key = kf.read()
-	    kf.close()
-	except Exception as e:
-	    log("w", "Error loading key files: " + str(e) )
+	    log("s", "Connected to %s:%s." %(self.server_address[0], self.server_port) )
 
 	self.connected = True
 	# Don't wait more than 15 seconds for the server.
@@ -101,168 +88,12 @@ class ServerConnection:
 	    log("w", "Closing connection to the server.")
 	    try:
 		#no need to authenticate when closing...
-		self.send_fixed("x")
+		send_fixed(self.serversocket, self.server_address, "x")
 	    except:
 		pass
 	    self.serversocket.close()
 	    self.connected = False
 
-    def send_fixed(self, data):
-	if not self.connected:
-	    raise Exception("Server not connected.")
-
-	try:
-	    sent = self.serversocket.send(data)
-	except socket.error, (value,message): 
-	    if self.serversocket: 
-    		self.serversocket.close() 
-    	    raise Exception("Could not send data to server (%s:%s): " %(self.server_address, self.server_port) + message)
-	    return False
-	return True
-
-    def send_dyn(self, data):
-	if not self.connected:
-	    raise Exception("Server not connected.")
-
-	self.send_fixed(str(len(data)).zfill(10))
-	self.send_fixed(data)
-    
-    def receive_fixed(self, message_len):
-	if not self.connected:
-	    raise Exception("Server not connected.")
-
-	chunks = []
-        bytes_recd = 0
-        while bytes_recd < message_len:
-            chunk = self.serversocket.recv(min(message_len - bytes_recd, 2048))
-            if chunk == '':
-                raise Exception("Socket connection broken (%s:%s): " %(self.server_address, self.server_port))
-            chunks.append(chunk)
-            bytes_recd = bytes_recd + len(chunk)
-        return ''.join(chunks)
-    
-    def receive_dyn(self):
-	msg_size = self.receive_fixed(10)
-	msg = self.receive_fixed(int(msg_size))
-	return msg
-
-    """
-    Send a string of characters encrpyted using a given AES key.
-	The message will be chopped up into chunks of fixed size.
-	The number of encrypted chunks is sent, followed by the
-	hash of the unencrypted data (used for integrity checking).
-	Encrypted chunks are sent one by one after that.
-    """
-    def send_aes_crypt(self, data, encryption_key):
-	crypt = AESCipher(encryption_key)
-
-	chunk_size = 1024
-	chunk_count = int(math.ceil(len(data) / float(chunk_size)))
-	digest = MD5.new(data).digest()
-
-	self.send_dyn(str(chunk_count))
-	self.send_dyn(digest)
-	
-	bytes_encrypted = 0
-	encrypted_data = ""
-	while bytes_encrypted < len(data):
-	    encrypted_chunk = crypt.encrypt(data[bytes_encrypted:min(bytes_encrypted+chunk_size, len(data))])
-	    bytes_encrypted = bytes_encrypted + chunk_size
-	    self.send_dyn(encrypted_chunk)
-
-    """
-    Receive a string of characters encrpyted using a given AES key.
-	The message will be received in chunks of fixed size.
-	The number of encrypted chunks is received, followed by the
-	hash of the unencrypted data (used for integrity checking).
-	Encrypted chunks are received one by one after that and 
-	decrypted using the given key. The resulting string is then
-	hashed and verified using the received hash.
-    """
-    def receive_aes_crypt(self, decryption_key, show_progress=True):
-	crypt = AESCipher(decryption_key)
-
-	chunk_count = int(self.receive_dyn())
-	received_digest = self.receive_dyn()
-
-	org = chunk_count
-	chunk_size = 1024
-	decrypted_results = ""
-	byte_rate = ""
-	start_time = datetime.now()
-	if show_progress and chunk_count:
-	    print bcolors.OKBLUE + "Progress: "
-	while chunk_count > 0:
-	    encrypted_chunk = self.receive_dyn()
-	    decrypted_results = decrypted_results + crypt.decrypt(encrypted_chunk)
-	    chunk_count = chunk_count - 1
-	    if show_progress:
-		time_elapsed = (datetime.now() - start_time).seconds
-		if  time_elapsed > 0:
-		    byte_rate = str((float(len(decrypted_results)) / float(time_elapsed)) / 1024.0)
-		update_progress( int(100 * float(org - chunk_count) / float(org)), byte_rate + " Kb/s " if byte_rate else "" )
-	if show_progress:
-	    print bcolors.ENDC
-
-	calculated_digest = MD5.new(decrypted_results).digest()
-	if calculated_digest == received_digest:
-	    return decrypted_results
-	else:
-	    raise Exception("AES: data integrity check failed.")
-	    return False
-
-    def receive_rsa_crypt(self, decryption_key, show_progress=True):
-	crypt = RSACrypt()
-
-	crypt.import_public_key(decryption_key)
-
-	chunk_count = int(self.receive_dyn())
-	received_digest = self.receive_dyn()
-
-	org = chunk_count
-	chunk_size = 256
-	decrypted_results = ""
-	byte_rate = ""
-	start_time = datetime.now()
-	if show_progress:
-	    print bcolors.OKGREEN + "Progress: "
-	while chunk_count > 0:
-	    encrypted_chunk = self.receive_dyn()
-	    decrypted_results = decrypted_results + crypt.public_key_decrypt(encrypted_chunk)
-	    chunk_count = chunk_count - 1
-	    if show_progress:
-		time_elapsed = (datetime.now() - start_time).seconds
-		if  time_elapsed > 0:
-		    byte_rate = str((float(len(decrypted_results)) / float(time_elapsed)) / 1024.0)
-		update_progress( int(100 * float(org - chunk_count) / float(org)), byte_rate + " Kb/s " if byte_rate else "" )
-	if show_progress:
-	    print bcolors.ENDC
-    
-	calculated_digest = MD5.new(decrypted_results).digest()
-	if calculated_digest == received_digest:
-	    return decrypted_results
-	else:
-	    raise Exception("RSA: data integrity check failed.")
-
-    def send_rsa_crypt(self, data, encryption_key):
-	crypt = RSACrypt()
-	crypt.import_public_key(encryption_key)
-
-	chunk_size = 256
-	chunk_count = int(math.ceil(len(data) / float(chunk_size)))
-	digest = MD5.new(data).digest()
-
-	self.send_dyn(str(chunk_count))
-	self.send_dyn(digest)
-	
-	ch = 0
-	bytes_encrypted = 0
-	encrypted_data = ""
-	while bytes_encrypted < len(data):
-	    ch = ch + 1
-	    encrypted_chunk = crypt.public_key_encrypt(data[bytes_encrypted:min(bytes_encrypted+chunk_size, len(data))])
-	    bytes_encrypted = bytes_encrypted + chunk_size
-	    self.send_dyn(encrypted_chunk[0])
 
     def login(self):
 
@@ -279,11 +110,8 @@ class ServerConnection:
 
 	try:
 	    log("i", "Authenticating with the server...")
-	    self.send_dyn(conf.c['client_tag'])
-	    if conf.c['client_tag'] <> "unauthorized":
-		received_token = self.receive_rsa_crypt(self.my_private_key, show_progress=False)
-		self.send_rsa_crypt(received_token, self.server_public_key)
-	    server_response = self.receive_fixed(1)
+	    send_dyn(self.serversocket, self.server_address, conf.c['client_tag'])
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	except Exception as e:
 	    log("e", "Can't authenticate: " + str(e)) 
 	    return False
@@ -295,15 +123,14 @@ class ServerConnection:
 	else:
 	    raise Exception("Unknown server response \"" + server_response + "\"")
 
-	self.aes_secret = received_token
 	return True
 
     def check_for_updates(self):
 	try:
 	    client_version = open(".version", "r").read()
-	    self.send_fixed("v")
-	    self.send_aes_crypt(client_version, self.aes_secret)
-	    server_response = self.receive_fixed(1)
+	    send_fixed(self.serversocket, self.server_address, "v")
+	    send_dyn(self.serversocket, self.server_address, client_version)
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	except Exception as e:
 	    raise Exception("Error checking for updates: " + str(e))
 
@@ -311,7 +138,7 @@ class ServerConnection:
 	    log("w", "There is a newer version of Centinel available.")
 	    log("i", "Downloading update package...")
 	    try:
-	        update_package_contents = self.receive_aes_crypt(self.aes_secret, show_progress=True)
+	        update_package_contents = receive_md5_checked(self.serversocket, self.server_address, show_progress=True)
 		of = open("update.tar.bz2", "w")
 		of.write(update_package_contents)
 		of.close()
@@ -335,8 +162,8 @@ class ServerConnection:
 	    raise Exception("Client not logged in.")
 
 	try:
-	    self.send_fixed(message)
-	    server_response = self.receive_fixed(1)
+	    send_fixed(self.serversocket, self.server_address, message)
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	except Exception as e:
 	    raise Exception("Can't submit file: " + str(e))
 	    return False
@@ -357,10 +184,10 @@ class ServerConnection:
 		raise Exception("Can not open file \"%s\": " %(file_path) + str(e))
 	    
 	    data = data_file.read()
-	    self.send_aes_crypt(name, self.aes_secret)
-	    self.send_aes_crypt(data, self.aes_secret)
+	    send_dyn(self.serversocket, self.server_address, name)
+	    send_md5_checked(self.serversocket, self.server_address, data)
 
-	    server_response = self.receive_fixed(1)
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	    if server_response <> "a":
 		raise Exception("Success message not received.")
 	except Exception as e:
@@ -384,10 +211,10 @@ class ServerConnection:
 
 	try:
 
-	    self.send_dyn("unauthorized")
-	    self.receive_fixed(1)
-	    self.send_fixed("i")
-	    server_response = self.receive_fixed(1)
+	    send_dyn(self.serversocket, self.server_address, "unauthorized")
+	    receive_fixed(self.serversocket, self.server_address, 1)
+	    send_fixed(self.serversocket, self.server_address, "i")
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	except Exception as e:
 	    raise Exception("Can\'t initialize: " + str(e))
 
@@ -400,30 +227,13 @@ class ServerConnection:
 	    raise Exception("Unknown server response \"" + server_response + "\"")
 
 	try:
-	    crypt = RSACrypt()
-	    my_public_key = crypt.public_key_string()
-	    self.server_public_key = self.receive_dyn()
-	    self.send_rsa_crypt(my_public_key, self.server_public_key)
-	    new_identity = self.receive_rsa_crypt(crypt.private_key_string()) #identities are usually of length 5
+	    new_identity = receive_dyn(self.serversocket, self.server_address, crypt.private_key_string()) #identities are usually of length 5
 
-	    server_response = self.receive_fixed(1)
-
-	    pkf = open(conf.c['client_public_rsa'], "w")
-	    pkf.write(crypt.public_key_string())
-	    pkf.close()
-
-	    pkf = open(conf.c['client_private_rsa'], "w")
-	    pkf.write(crypt.private_key_string())
-	    pkf.close()
-
-	    pkf = open(conf.c['server_public_rsa'], "w")
-	    pkf.write(self.server_public_key)
-	    pkf.close()
-
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 
 	    conf.c['client_tag'] = new_identity
 	    if server_response == "c":
-		log("s", "Server key negotiation and handshake successful. New tag: " + new_identity)
+		log("s", "Server certificate download and handshake successful. New tag: " + new_identity)
 		conf.set("client_tag",new_identity)
 		conf.update()
 
@@ -442,13 +252,13 @@ class ServerConnection:
 	    raise Exception("Client not authorized to send heartbeat.")
 
 	try:
-	    self.send_fixed('b')
-	    server_response = self.receive_fixed(1)
+	    send_fixed(self.serversocket, self.server_address, 'b')
+	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	    
 	    if server_response == 'b':
 		return "beat"
 	    elif server_response == 'c':
-		return self.receive_aes_crypt(self.aes_secret, show_progress=False)
+		return receive_md5_checked(self.serversocket, self.server_address, show_progress=False)
 	    else:
 		raise Exception("Server response not recognized.")
 	except Exception as e:
@@ -514,7 +324,7 @@ class ServerConnection:
 	if conf.c['client_tag'] == 'unauthorized':
 	    raise Exception("Client not authorized to sync experiments.")
 
-	self.send_fixed("s")
+	send_fixed(self.serversocket, self.server_address, "s")
 	
 	try:
 	    cur_exp_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.py'))]
@@ -527,10 +337,11 @@ class ServerConnection:
 		msg = msg + exp + "%" + MD5.new(exp_content).digest() + "|"
 	
 	    if msg:
-		self.send_aes_crypt(msg[:-1], self.aes_secret)
+		send_md5_checked(self.serversocket, self.server_address, msg[:-1])
 	    else:
-		self.send_aes_crypt("n", self.aes_secret)
-	    new_exp_count = self.receive_dyn()
+		send_md5_checked(self.serversocket, self.server_address, "n")
+
+	    new_exp_count = receive_dyn(self.serversocket, self.server_address, )
 	
 	    i = int(new_exp_count)
 
@@ -541,8 +352,8 @@ class ServerConnection:
 		while i > 0:
 		    try:
 			i = i - 1
-			exp_name = self.receive_aes_crypt(self.aes_secret, show_progress = False)
-			exp_content = self.receive_aes_crypt(self.aes_secret)
+			exp_name = receive_md5_checked(self.serversocket, self.server_address, self.aes_secret, show_progress = False)
+			exp_content = receive_md5_checked(self.serversocket, self.server_address, show_progress = True)
 			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
 			f.close()
@@ -556,7 +367,7 @@ class ServerConnection:
 	    raise Exception("Error downloading new experiments: " + str(e))
 
 	try:
-    	    old_list = self.receive_aes_crypt(self.aes_secret, False)
+    	    old_list = receive_md5_checked(self.serversocket, self.server_address, show_progress = False)
 
 	    if old_list <> "n":
 		changed = True
@@ -582,10 +393,10 @@ class ServerConnection:
 		msg = msg + exp_data + "%" + MD5.new(exp_data_contents).digest() + "|"
 	
 	    if msg:
-		self.send_aes_crypt(msg[:-1], self.aes_secret)
+		send_md5_checked(self.serversocket, self.server_address, msg[:-1])
 	    else:
-		self.send_aes_crypt("n", self.aes_secret)
-	    new_exp_data_count = self.receive_dyn()
+		send_md5_checked(self.serversocket, self.server_address, "n")
+	    new_exp_data_count = receive_dyn(self.serversocket, self.server_address, )
 	
 	    i = int(new_exp_data_count)
 
@@ -595,8 +406,8 @@ class ServerConnection:
 		log("i", "Updating experiment data files...")
 		while i > 0:
 		    try:
-			exp_data_name = self.receive_aes_crypt(self.aes_secret, show_progress=False)
-			exp_data_content = self.receive_aes_crypt(self.aes_secret)
+			exp_data_name = receive_dyn(self.serversocket, self.server_address, show_progress = False)
+			exp_data_content = receive_md5_checked(self.serversocket, self.server_address, show_progress = True)
 			f = open(os.path.join(conf.c['experiment_data_dir'], exp_data_name), "w")
 			f.write(exp_data_content)
 			f.close()
@@ -608,7 +419,7 @@ class ServerConnection:
 	    raise Exception("Error downloading new experiment data files: " + str(e))
 
 	try:
-    	    old_list = self.receive_aes_crypt(self.aes_secret, False)
+    	    old_list = receive_md5_checked(self.serversocket, self.server_address, show_progress = False)
 
 	    if old_list <> "n":
 		changed = True
