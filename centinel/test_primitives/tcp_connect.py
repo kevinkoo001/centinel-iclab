@@ -1,3 +1,6 @@
+# Eric Goren nytikitaco@gmail.com
+# Summer 2014
+
 import ConfigParser
 import socket
 from centinel.experiment import Experiment

@@ -1,3 +1,6 @@
+# Eric Goren nytikitaco@gmail.com
+# Summer 2014
+
 import ConfigParser
 import os
 import subprocess
@@ -5,7 +8,7 @@ import socket
 from centinel.experiment import Experiment
 from utils import logger
 
-# This traceroute works by pinging the host with incrementing TTLs
+# Performs a traceroute by pinging the host with incrementing TTLs
 class ConfigurableTracerouteExperiment(Experiment):
     name = "config_traceroute"
 

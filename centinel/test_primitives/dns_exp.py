@@ -1,3 +1,6 @@
+# Eric Goren nytikitaco@gmail.com
+# Summer 2014
+
 import dns.resolver
 import ConfigParser
 import os
