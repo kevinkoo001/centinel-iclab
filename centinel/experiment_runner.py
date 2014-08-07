@@ -167,8 +167,8 @@ def execute_experiment(name, Exp, run_id):
 	input_file = get_custom_input_file(name)
 
     if not os.path.isfile(input_file):
-	log("e", "No input file found for \"%s\". Skipping test." % (name))
-	return
+	log("w", "No input file found for \"%s\"." % (name))
+	#return
     
     log("i", "Reading input from \"%s\"" % (input_file))
     input_file = open(input_file)
@@ -182,6 +182,39 @@ def execute_experiment(name, Exp, run_id):
 
     input_file.close()
     return exp.results
+
+def execute_python_experiment_from_source(source_address, input_file, output_file):
+    try:
+	# get name of file and path
+	name, ext = os.path.splitext(os.path.basename(source_address))
+	# load the experiment
+	imp.load_source(name, source_address)
+    except Exception as e:
+	print "Error loading experiment: " + str(e)
+	return
+    try:
+	input_file = open(input_file)
+    except Exception as e:
+	print "Error loading experiment input file: " + str(e)
+	input_file = ""
+
+    try:
+    if True:
+	# it should be the only experiment in the list, since we haven't called load_python_experiments() yet
+        exp = ExperimentList.experiments.items()[0][1](input_file)
+	exp.run()
+    except Exception as e:
+	print "Error running experiment: ", e
+	return
+
+    try:
+	result_file = open(output_file, "w")
+	res,run_id = prep_results("command_line", exp.name)
+	res[exp.name] = exp.results
+	json.dump(res, result_file)
+	result_file.close()
+    except Exception as e:
+	print "Error writing results to file: " + str(e)
 
 def execute_conf_experiment(name, run_id):
     results = {}
