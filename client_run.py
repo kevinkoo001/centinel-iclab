@@ -4,6 +4,7 @@ import sys
 import os
 import time
 from centinel import experiment_runner
+from centinel.experiment_runner import *
 from centinel.client import ServerConnection
 from utils.colors import bcolors
 from utils.logger import *
@@ -64,20 +65,46 @@ def centinel_run(args):
 
     logging.basicConfig(filename=os.path.join(conf.c['logs_dir'], strftime("%Y-%m-%d-%H:%M:%S")  + ".log"), level=logging.DEBUG)
 
-    log("i", "Client daemon is running...")
 
-    selection = args
-    selection.pop(0)
+    args.pop(0)
 
-    if selection:
-	run_exp(selection)
-	return 0
+    if "--run" in args:
+	if args.index("--run") + 1 >= len(args):
+	    print "Error: no experiment file specified!"
+	    exit (1)
+	else:
+	    source_address = args[args.index("--run") + 1]
+	if "--input" not in args:
+	    print "Error: no input file specified! (\"--input\" missing)"
+	    exit (1)
+	if args.index("--input") + 1 >= len(args):
+	    print "Error: no input file specified!"
+	    exit (1)
+	else:
+	    input_file = args[args.index("--input") + 1]
+	if "--output" in args:
+	    if args.index("--output") + 1 >= len(args):
+		print "Error: no output file specified!"
+		exit (1)
+	    else:
+		output_file = args[args.index("--output") + 1]
+	else:
+	    output_file = os.path.splitext(source_address)[0] + ".json"
+	    print "No output specified, using \"%s\"." %(output_file)
+	try:
+	    #exp = open(args[args.index("--run") + 1], "r")
+	    execute_python_experiment_from_source(source_address, input_file, output_file)
+	    return 0
+	except Exception as e:
+	    print "Error running the experiment: " + str(e)
+	    exit (1)
 
     print open("centinel_client_ascii_art", "r").read()
 
     global serverconn
     serverconn = ServerConnection()
 
+    log("i", "Client daemon is running...")
     if not serverconn.connect():
 	log("e", 'Server not connected.')
 
