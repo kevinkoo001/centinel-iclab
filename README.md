@@ -5,24 +5,24 @@ censorship.
 
 #### Install and usage
 
-    # acquire the latest development version
-    * git clone https://github.com/iclab/centinel-iclab.git
+acquire the latest development version
+* git clone https://github.com/iclab/centinel-iclab.git
     
-    # prepare and install dependencies
-    * ./prepare.sh
+prepare and install dependencies
+* ./prepare.sh
 
-    # initialize Centinel and exchange keys with Sirocco server
-    * ./init_client.py
+initialize Centinel and exchange keys with Sirocco server
+* ./init_client.py
 
-    # run Centinel Client
-    * ./centinel.py [experiment 1] [experiment 2] ...
-	(running without arguments will run the client daemon and connect to the server)
+# run Centinel Client
+* ./centinel.py [experiment 1] [experiment 2] ...
+(running without arguments will run the client daemon and connect to the server)
 
 #### Supported platforms
 
-    * Linux/OS X
-    * BISmark Routers
-    * Android
+* Linux/OS X
+* BISmark Routers
+* Android
 
 #### How to make a test
 
