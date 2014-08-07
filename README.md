@@ -14,7 +14,7 @@ prepare and install dependencies
 initialize Centinel and exchange keys with Sirocco server
 * ./init_client.py
 
-# run Centinel Client
+run Centinel Client
 * ./centinel.py [experiment 1] [experiment 2] ...
 (running without arguments will run the client daemon and connect to the server)
 
@@ -26,33 +26,33 @@ initialize Centinel and exchange keys with Sirocco server
 
 #### How to make a test
 
-    * The file must either end in .cfg or .py and be placed in ~/.centinel/custom_experiments/
-    $ >centinel/custom_experiments/newTest.cfg
+The file must either end in .cfg or .py and be placed in ~/.centinel/custom_experiments/
+$ >centinel/custom_experiments/newTest.cfg
 
-    * If writing a Python configuration:
-    * [to be added]
+If writing a Python configuration:
+[to be added]
 
-    * If writing a test configuration:
+If writing a test configuration:
 
-    * A list of URLs should be written to the file like this:
-    * Every URL after the first one must be indented
+* A list of URLs should be written to the file like this:
+Every URL after the first one must be indented
 
     [URLS]
     url_list = google.com
 	yahoo.com
 	rpanah.ir
 
-    * You can add different tests by adding their names in square brackets.
-    * Example: [DNS]
+You can add different tests by adding their names in square brackets.
+Example: [DNS]
 
-    * different parameters can be added below the test name like this:
-    * Don't include comments following the '#'s
+different parameters can be added below the test name like this:
+Don't include comments following the '#'s
 
     [DNS] # (Name of the test)
     timeout = 5 # Specifies timeout
     resolver = 8.8.8.8 # Another parameter.This one specifies the resolver ip
 
-    # Parameters are optional, but add flexibility to the tests
+Parameters are optional, but add flexibility to the tests
 
 ##### Full Test list and parameters
 
