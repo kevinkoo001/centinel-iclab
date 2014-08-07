@@ -24,7 +24,7 @@ initialize Centinel and exchange keys with Sirocco server
 
 run Centinel Client
 
-    * ./centinel.py [experiment 1] [experiment 2] ...
+    * ./centinel.py --run path/to/experiment.py --input path/to/input.txt --output path/to/output.json
 (running without arguments will run the client daemon and connect to the server)
 
 ##### Installing as a service:
