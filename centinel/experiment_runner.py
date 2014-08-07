@@ -199,7 +199,6 @@ def execute_python_experiment_from_source(source_address, input_file, output_fil
 	input_file = ""
 
     try:
-    if True:
 	# it should be the only experiment in the list, since we haven't called load_python_experiments() yet
         exp = ExperimentList.experiments.items()[0][1](input_file)
 	exp.run()
