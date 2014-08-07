@@ -145,10 +145,10 @@ class ConfigurableDNSExperiment(Experiment):
         }
 
         result["records"] = dict()
+        ans = ""
         for record_type in self.record_types:
             result["records"][record_type] = dict()
             dns_records = []  # Array to store DNS Records
-            ans = ""
             if self.isIp(self.host) and record_type == "A":  # If Ip is passed in instead of Url, default to PTR record
                 try:
                     addr = reversename.from_address(self.host)  # Get address
@@ -159,7 +159,7 @@ class ConfigurableDNSExperiment(Experiment):
                         dns_records.append(i.to_text())  # Add the record to the list
                 except Exception as e:
                     logger.log("e", "Error querying PTR records for Ip " + self.host + " (" + str(e) + ")")
-                    ans = "Error (" + str(e) + ")"
+                    ans += "Error (" + str(e) + ")" + "; "
             else:
                 try:
                     query = dns.message.make_query(self.host, record_type)
@@ -174,23 +174,22 @@ class ConfigurableDNSExperiment(Experiment):
                             logger.log("s", answer.to_text())
                 except dns.exception.Timeout:
                     logger.log("e", "Query Timed out for " + self.host)
-                    ans = "Timeout"
+                    ans += "Timeout" + "; "
                 except Exception as e:
                     logger.log("e", "Error Querying " + record_type + " record for " + self.host + " (" + str(e) + ")")
-                    ans = "Error (" + str(e) + ")"
+                    ans += "Error (" + str(e) + ")" + "; "
 
             if not ans.startswith("Error ("):
                 if len(dns_records) == 0:
-                    ans = record_type + " records unavailable for " + self.host
+                    ans += record_type + " records unavailable for " + self.host + "; "
                     logger.log("i", ans)
-
-            if len(dns_records) > 0:  # If there are records in the array
-                ans = ""
 
             result["records"][record_type]["dns_records"] = dns_records
             result["records"][record_type]['records_received'] = len(dns_records)
-            result["records"][record_type]["error_text"] = ans
 
+        if ans != "":
+            ans = ans[:-2]  # Remove extra semicolon and space
+        result["error_text"] = ans
         self.test_for_second_packet(result)
 
         self.results.append(result)

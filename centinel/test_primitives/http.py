@@ -1,7 +1,6 @@
 # Eric Goren nytikitaco@gmail.com
 # Summer 2014
 
-
 import ConfigParser
 import os
 import utils.http as http
@@ -133,7 +132,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         start_time = time.time()
         if self.addHeaders:
             http_result = http.get_request(self.host, self.path, self.headers, self.ssl)
-            result["request_headers"] = self.headers
+            result["request_headers.b64"] = base64.b64encode(str(self.headers))
         else:
             http_result = http.get_request(self.host, self.path, ssl=self.ssl)
         end_time = time.time()
@@ -145,7 +144,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         # If no response was received...
         if "body" not in http_result["response"]:
             logger.log("e", "No HTTP Response from " + self.whole_url)
-            result["failure"] = "No response"
+            result["response_error_text"] = "No response"
             self.results.append(result)
             return
 
@@ -167,6 +166,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         result["redirect"] = str(is_redirecting)
         last_redirect = ""
         redirect_number = 1
+        redirect_url = ""
         if is_redirecting:
             try:
 
@@ -189,6 +189,9 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                     host, path = self.get_host_and_path_from_url(redirect_url)
                     start_time = time.time()
                     redirect_result = http.get_request(host, path, ssl=ssl)
+                    if "body" not in http_result["response"]:
+                        result["response_error_text"] = "No response from " + redirect_result
+                        raise Exception("No HTTP Response from " + redirect_url)
                     end_time = time.time()
                     temp_results = {}
                     temp_results["response_url"] = redirect_url
@@ -205,8 +208,7 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                     redirect_number += 1
                     all_redirects.append(temp_results)
             except Exception as e:
-                logger.log("e", "Http redirect failed: " + str(e))
-                return
+                logger.log("e", "Http redirect failed for " + redirect_url + " : " + str(e))
         result["responses"] = all_redirects
         result["total_redirects"] = str(redirect_number - 1)
         self.results.append(result)
