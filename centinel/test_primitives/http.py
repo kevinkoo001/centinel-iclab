@@ -1,3 +1,7 @@
+# Eric Goren nytikitaco@gmail.com
+# Summer 2014
+
+
 import ConfigParser
 import os
 import utils.http as http
