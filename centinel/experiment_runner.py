@@ -196,6 +196,7 @@ def execute_python_experiment_from_source(source_address, input_file, output_fil
 	input_file = open(input_file)
     except Exception as e:
 	print "Error loading experiment input file: " + str(e)
+	print "Using empty input."
 	input_file = ""
 
     try:
