@@ -68,28 +68,48 @@ def centinel_run(args):
 
     args.pop(0)
 
-    if "--run" in args:
-	if args.index("--run") + 1 >= len(args):
+    possible_arguments = ["-r", "--run", "-i", "--input", "-o", "--output"]
+
+    ind = 0
+    if "-r" in args:
+	ind = args.index("-r")
+    elif "--run" in args:
+	ind = args.index("--run")
+    if ind:
+	if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
 	    print "Error: no experiment file specified!"
 	    exit (1)
 	else:
-	    source_address = args[args.index("--run") + 1]
-	if "--input" in args:
-	    if args.index("--input") + 1 >= len(args):
+	    source_address = args[ind + 1]
+	
+	ind = 0
+	if "-i" in args:
+	    ind = args.index("-i")
+	elif "--input" in args:
+	    ind = args.index("--input")
+
+	if ind:
+	    if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
 		print "Error: no input file specified!"
 		exit (1)
 	    else:
-		input_file = args[args.index("--input") + 1]
+		input_file = args[ind + 1]
 	else:
 	    input_file = os.path.splitext(source_address)[0] + ".txt"
 	    print "No input specified, using \"%s\"." %(input_file)
 
-	if "--output" in args:
-	    if args.index("--output") + 1 >= len(args):
+	ind = 0
+	if "-o" in args:
+	    ind = args.index("-o")
+	elif "--ouput" in args:
+	    ind = args.index("--output")
+
+	if ind:
+	    if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
 		print "Error: no output file specified!"
 		exit (1)
 	    else:
-		output_file = args[args.index("--output") + 1]
+		output_file = args[ind + 1]
 	else:
 	    output_file = os.path.splitext(source_address)[0] + ".json"
 	    print "No output specified, using \"%s\"." %(output_file)
