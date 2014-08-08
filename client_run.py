@@ -74,14 +74,16 @@ def centinel_run(args):
 	    exit (1)
 	else:
 	    source_address = args[args.index("--run") + 1]
-	if "--input" not in args:
-	    print "Error: no input file specified! (\"--input\" missing)"
-	    exit (1)
-	if args.index("--input") + 1 >= len(args):
-	    print "Error: no input file specified!"
-	    exit (1)
+	if "--input" in args:
+	    if args.index("--input") + 1 >= len(args):
+		print "Error: no input file specified!"
+		exit (1)
+	    else:
+		input_file = args[args.index("--input") + 1]
 	else:
-	    input_file = args[args.index("--input") + 1]
+	    input_file = os.path.splitext(source_address)[0] + ".txt"
+	    print "No input specified, using \"%s\"." %(input_file)
+
 	if "--output" in args:
 	    if args.index("--output") + 1 >= len(args):
 		print "Error: no output file specified!"
