@@ -76,7 +76,7 @@ def centinel_run(args):
     elif "--run" in args:
 	ind = args.index("--run")
     if ind <> -1:
-	if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
+	if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] in possible_arguments):
 	    print "Error: no experiment file specified!"
 	    exit (1)
 	else:
@@ -89,7 +89,7 @@ def centinel_run(args):
 	    ind = args.index("--input")
 
 	if ind:
-	    if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
+	    if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] in possible_arguments):
 		print "Error: no input file specified!"
 		exit (1)
 	    else:
@@ -105,7 +105,7 @@ def centinel_run(args):
 	    ind = args.index("--output")
 
 	if ind:
-	    if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
+	    if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] in possible_arguments):
 		print "Error: no output file specified!"
 		exit (1)
 	    else:
