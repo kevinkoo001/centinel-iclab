@@ -208,11 +208,13 @@ def execute_python_experiment_from_source(source_address, input_file, output_fil
 	return
 
     try:
+	print "Writing outout to \"%s\"" %(output_file)
 	result_file = open(output_file, "w")
 	res,run_id = prep_results("command_line", exp.name)
 	res[exp.name] = exp.results
 	json.dump(res, result_file)
 	result_file.close()
+	print "Done."
     except Exception as e:
 	print "Error writing results to file: " + str(e)
 
