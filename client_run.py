@@ -70,12 +70,12 @@ def centinel_run(args):
 
     possible_arguments = ["-r", "--run", "-i", "--input", "-o", "--output"]
 
-    ind = 0
+    ind = -1
     if "-r" in args:
 	ind = args.index("-r")
     elif "--run" in args:
 	ind = args.index("--run")
-    if ind:
+    if ind <> -1:
 	if ind + 1 >= len(args) or (ind + 1 < len(args) and args[ind + 1] not in possible_arguments):
 	    print "Error: no experiment file specified!"
 	    exit (1)
