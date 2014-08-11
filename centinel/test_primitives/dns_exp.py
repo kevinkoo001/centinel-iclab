@@ -182,7 +182,7 @@ class ConfigurableDNSExperiment(Experiment):
             if not ans.startswith("Error ("):
                 if len(dns_records) == 0:
                     ans += record_type + " records unavailable for " + self.host + "; "
-                    logger.log("i", ans)
+
 
             result["records"][record_type]["dns_records"] = dns_records
             result["records"][record_type]['records_received'] = len(dns_records)
@@ -190,6 +190,8 @@ class ConfigurableDNSExperiment(Experiment):
         if ans != "":
             ans = ans[:-2]  # Remove extra semicolon and space
         result["error_text"] = ans
+        if ans != "":
+            logger.log("i", ans)
         self.test_for_second_packet(result)
 
         self.results.append(result)
