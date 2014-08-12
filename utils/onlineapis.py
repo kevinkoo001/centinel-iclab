@@ -1,4 +1,7 @@
 import requests
+import xml.etree.ElementTree as ET
+import datetime
+from logger import log
 
 """
     Geolocate an IP address.
@@ -26,5 +29,15 @@ def getmyip():
     Get the current EST time.
 """
 def getESTTime():
-    response = requests.get("http://www.timeapi.org/est/now")
-    return response.content.split()[0]
+
+    response = requests.get("http://api.timezonedb.com/?zone=America/New_York&key=UA0TQHO81DUU")
+    try:
+	root = ET.fromstring(response.content)
+    except Exception as e:
+	log("w", "Failed to get the time: " + str(e))
+	return ""
+
+    if root.findall('status') and root.findall('status')[0].text == 'OK':
+	return datetime.datetime.utcfromtimestamp(float(root.findall('timestamp')[0].text)).isoformat()
+    else:
+	return ""
