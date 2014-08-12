@@ -15,6 +15,7 @@ class ConfigurableTCPConnectExperiment(Experiment):
         self.host = None
         self.port = None
         self.args = dict()
+        self.timeout = 45
         self.url = ""
 
     def run(self):
@@ -30,6 +31,9 @@ class ConfigurableTCPConnectExperiment(Experiment):
             self.port = self.args['port']
         else:
             self.port = "80"
+
+        if 'timeout' in self.args.keys():
+            self.timeout = int(self.args['timeout'])
 
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
@@ -81,14 +85,18 @@ class ConfigurableTCPConnectExperiment(Experiment):
         return True
 
     def tcp_connect(self):
+
         result = {
             "url": self.url,
             "host": self.host,
-            "port": self.port
+            "port": self.port,
+            "timeout": self.timeout,
         }
+
         self.dns_test(result)
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(self.timeout)
             sock.connect((self.host, int(self.port)))
             sock.close()
             result["success"] = "True"
