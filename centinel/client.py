@@ -30,7 +30,7 @@ conf = client_conf()
 
 class ServerConnection:
     
-    def __init__(self, server_addresses = conf.c['server_addresses'], server_port = int(conf.c['server_port'])):
+    def __init__(self, server_addresses = conf['server_addresses'], server_port = int(conf['server_port'])):
 	self.server_addresses = server_addresses.split(" ")
 	self.server_address = ""
 	self.server_port = server_port
@@ -68,7 +68,7 @@ class ServerConnection:
 
 	self.connected = True
 	# Don't wait more than 15 seconds for the server.
-	self.serversocket.settimeout(int(conf.c['timeout']))
+	self.serversocket.settimeout(int(conf['timeout']))
 	log("i", "Server connection successful.")
 	if do_login:
 	    try:
@@ -110,7 +110,7 @@ class ServerConnection:
 
 	try:
 	    log("i", "Authenticating with the server...")
-	    send_dyn(self.serversocket, self.server_address, conf.c['client_tag'])
+	    send_dyn(self.serversocket, self.server_address, conf['client_tag'])
 	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 	except Exception as e:
 	    log("e", "Can't authenticate: " + str(e)) 
@@ -155,7 +155,7 @@ class ServerConnection:
 	if not self.connected:
 	    raise Exception("Server not connected.")
 
-	if conf.c['client_tag'] == 'unauthorized':
+	if conf['client_tag'] == 'unauthorized':
 	    raise Exception("Client not authorized to send files.")
 
 	if not self.logged_in:
@@ -231,7 +231,7 @@ class ServerConnection:
 
 	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 
-	    conf.c['client_tag'] = new_identity
+	    conf['client_tag'] = new_identity
 	    if server_response == "c":
 		log("s", "Server certificate download and handshake successful. New tag: " + new_identity)
 		conf.set("client_tag",new_identity)
@@ -248,7 +248,7 @@ class ServerConnection:
 	if not self.connected:
 	    raise Exception("Server not connected.")
 
-	if conf.c['client_tag'] == 'unauthorized':
+	if conf['client_tag'] == 'unauthorized':
 	    raise Exception("Client not authorized to send heartbeat.")
 
 	try:
@@ -267,18 +267,18 @@ class ServerConnection:
     def send_logs(self):
 	successful = 0
 	total = 0
-	if not os.path.exists(conf.c['logs_dir']):
-    	    log("i", "Creating logs directory in %s" % (conf.c['logs_dir']))
-    	    os.makedirs(conf.c['results_archive_dir'])
+	if not os.path.exists(conf['logs_dir']):
+    	    log("i", "Creating logs directory in %s" % (conf['logs_dir']))
+    	    os.makedirs(conf['results_archive_dir'])
 
-	for log_name in listdir(conf.c['logs_dir']):
-	    if isfile(join(conf.c['logs_dir'],log_name)):
+	for log_name in listdir(conf['logs_dir']):
+	    if isfile(join(conf['logs_dir'],log_name)):
 		log("i", "Sending \"" + log_name + "\"...")
 		total = total + 1
 		try:
-		    self.send_file(log_name, join(conf.c['logs_dir'], log_name), "g")
+		    self.send_file(log_name, join(conf['logs_dir'], log_name), "g")
 		    log("s", "Sent \"" + log_name + "\" to the server.")
-		    os.remove(os.path.join(conf.c['logs_dir'], log_name))
+		    os.remove(os.path.join(conf['logs_dir'], log_name))
 		    successful = successful + 1
 		except Exception as e:
 		    log("e", "There was an error while sending \"" + log_name + "\": %s. Will retry later." %(str(e)))
@@ -292,21 +292,27 @@ class ServerConnection:
     def sync_results(self):
 	successful = 0
 	total = 0
-	if not os.path.exists(conf.c['results_archive_dir']):
-    	    log("i", "Creating results directory in %s" % (conf.c['results_archive_dir']))
-    	    os.makedirs(conf.c['results_archive_dir'])
+	if conf["archive_sent_results"] == "1" and not os.path.exists(conf['results_archive_dir']):
+    	    log("i", "Creating results directory in %s" % (conf['results_archive_dir']))
+    	    os.makedirs(conf['results_archive_dir'])
 
-	for result_name in listdir(conf.c['results_dir']):
-	    if isfile(join(conf.c['results_dir'],result_name)):
+	for result_name in listdir(conf['results_dir']):
+	    if isfile(join(conf['results_dir'],result_name)):
 		log("i", "Submitting \"" + result_name + "\"...")
 		total = total + 1
 		try:
-		    self.send_file(result_name, join(conf.c['results_dir'], result_name), "r")
-		    try:
-			shutil.move(os.path.join(conf.c['results_dir'], result_name), os.path.join(conf.c['results_archive_dir'], result_name))
-			log("s", "Moved \"" + result_name + "\" to the archive.")
-		    except:
-			log("e", "There was an error while moving \"" + result_name + "\" to the archive. This will be re-sent the next time.")
+		    self.send_file(result_name, join(conf['results_dir'], result_name), "r")
+		    if conf["archive_sent_results"] == "1":
+			try:
+			    shutil.move(os.path.join(conf['results_dir'], result_name), os.path.join(conf['results_archive_dir'], result_name))
+			    log("s", "Moved \"" + result_name + "\" to the archive.")
+			except:
+			    log("e", "There was an error while moving \"" + result_name + "\" to the archive. This will be re-sent the next time.")
+		    else:
+			try:
+			    os.remove(os.path.join(conf['results_dir'], result_name))
+			except:
+			    log("e", "There was an error while removing \"" + result_name + "\". This will be re-sent the next time.")
 		    successful = successful + 1
 		except Exception as e:
 		    log("e", "There was an error while sending \"" + result_name + "\": %s. Will retry later." %(str(e)))
@@ -321,19 +327,19 @@ class ServerConnection:
 	if not self.connected:
 	    raise Exception("Server not connected.")
 
-	if conf.c['client_tag'] == 'unauthorized':
+	if conf['client_tag'] == 'unauthorized':
 	    raise Exception("Client not authorized to sync experiments.")
 
 	send_fixed(self.serversocket, self.server_address, "s")
 	
 	try:
-	    cur_exp_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.py'))]
-	    cur_exp_list += [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['remote_experiments_dir'], '*.cfg'))]
+	    cur_exp_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf['remote_experiments_dir'], '*.py'))]
+	    cur_exp_list += [os.path.basename(path) for path in glob.glob(os.path.join(conf['remote_experiments_dir'], '*.cfg'))]
 
 	    msg = ""
 	    changed = False
 	    for exp in cur_exp_list:
-		exp_content = open(os.path.join(conf.c['remote_experiments_dir'], exp), 'r').read()
+		exp_content = open(os.path.join(conf['remote_experiments_dir'], exp), 'r').read()
 		msg = msg + exp + "%" + MD5.new(exp_content).digest() + "|"
 	
 	    if msg:
@@ -354,7 +360,7 @@ class ServerConnection:
 			i = i - 1
 			exp_name = receive_dyn(self.serversocket, self.server_address)
 			exp_content = receive_md5_checked(self.serversocket, self.server_address, show_progress = True)
-			f = open(os.path.join(conf.c['remote_experiments_dir'], exp_name), "w")
+			f = open(os.path.join(conf['remote_experiments_dir'], exp_name), "w")
 			f.write(exp_content)
 			f.close()
 			log("s", "\"%s\" received (%d/%d)." %(exp_name, int(new_exp_count) - i, int(new_exp_count)))
@@ -375,7 +381,7 @@ class ServerConnection:
 		for exp in old_list.split("|"):
 		    try:
 			if exp:
-			    os.remove(os.path.join(conf.c['remote_experiments_dir'], exp))
+			    os.remove(os.path.join(conf['remote_experiments_dir'], exp))
 			    log("i", "Removed %s." %(exp))
 		    except Exception as e:
 			log("e", "Error removing %s." %(exp))
@@ -384,12 +390,12 @@ class ServerConnection:
 	    raise Exception("Error removing old experiments: " + str(e))
 	
 	try:
-	    cur_exp_data_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf.c['experiment_data_dir'], '*.txt'))]
+	    cur_exp_data_list = [os.path.basename(path) for path in glob.glob(os.path.join(conf['experiment_data_dir'], '*.txt'))]
 
 	    msg = ""
 
 	    for exp_data in cur_exp_data_list:
-		exp_data_contents = open(os.path.join(conf.c['experiment_data_dir'], exp_data), 'r').read()
+		exp_data_contents = open(os.path.join(conf['experiment_data_dir'], exp_data), 'r').read()
 		msg = msg + exp_data + "%" + MD5.new(exp_data_contents).digest() + "|"
 	
 	    if msg:
@@ -408,7 +414,7 @@ class ServerConnection:
 		    try:
 			exp_data_name = receive_dyn(self.serversocket, self.server_address, show_progress = False)
 			exp_data_content = receive_md5_checked(self.serversocket, self.server_address, show_progress = True)
-			f = open(os.path.join(conf.c['experiment_data_dir'], exp_data_name), "w")
+			f = open(os.path.join(conf['experiment_data_dir'], exp_data_name), "w")
 			f.write(exp_data_content)
 			f.close()
 			i = i - 1
@@ -427,7 +433,7 @@ class ServerConnection:
 		for exp_data in old_list.split("|"):
 		    try:
 			if exp_data:
-			    os.remove(os.path.join(conf.c['experiment_data_dir'], exp_data))
+			    os.remove(os.path.join(conf['experiment_data_dir'], exp_data))
 			    log("i", "Removed \"%s\"." %(exp_data))
 		    except Exception as e:
 			log("e", "Error removing \"%s\"." %(exp_data))
