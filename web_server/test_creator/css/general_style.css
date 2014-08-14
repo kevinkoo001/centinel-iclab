@@ -1,0 +1,122 @@
+    body		{
+		background-color: #FFFFFF;
+		font: normal 24px "Century Gothic",Helvetica,Verdana,Arial,sans-serif;
+		color: #111; margin: 20px 0px 0px;
+	    }
+    
+    a:hover		{	
+		color: #B93;
+		border-bottom: 1px dashed #AAA;
+	    }
+
+    a		{	text-decoration: none; color: gray; }
+
+    div, img	{
+		border: 0px;
+		padding: 0px;
+		margin: 0px;
+	    }
+		
+	
+		
+	.defaultTextBox:hover 	{
+		border: solid 2px #8FBCE9; 
+		}
+		
+	.defaultTextBox {
+		width: 134px
+		}
+    
+    hr
+    {
+    background-color: #eee;
+    border: 0 none;
+    color: #eee;
+    height: 1px;
+    }
+	
+    #mom		{
+		position:relative;
+		margin-left:auto;
+		margin-right:auto;
+		width:900px;
+	    }
+
+    #headtitle	{
+		letter-spacing: 20px;
+		font-size: 32px;
+		width: 550px;
+		margin-left: auto;
+		margin-right: auto;
+	    }
+
+    #menu		{
+		font-size: 24px;
+		margin-left: auto;
+		margin-right: auto;
+		width: 650px;
+	    }
+
+    #footer		{
+		width:530px;
+		margin-left: auto;
+		margin-right: auto;
+		position: relative;
+		border-top: 1px solid gray;
+		font-size: 10px;
+	    }
+
+    #maincontainer	{
+		margin-left: auto;
+		position:relative;
+		margin-right: auto;
+		width: 570px;
+	    }
+		
+	#ping_parameters{
+		border: 1px solid;
+		box-shadow: 2px 2px 5px #888888;
+		border-radius: 15px;
+		background-color: #F7F7F2;
+		}
+		
+	#dns_parameters{
+		border: 1px solid;
+		box-shadow: 2px 2px 5px #888888;
+		border-radius: 15px;
+		background-color: #F7F7F2;
+		}
+		
+	#traceroute_parameters{
+		border: 1px solid;
+		box-shadow: 2px 2px 5px #888888;
+		border-radius: 15px;
+		background-color: #F7F7F2;
+		}
+	
+	#tcp_parameters{
+		border: 1px solid;
+		box-shadow: 2px 2px 5px #888888;
+		border-radius: 15px;
+		background-color: #F7F7F2;
+		}
+   
+   #http_parameters{
+    border: 1px solid;
+		box-shadow: 2px 2px 5px #888888;
+		border-radius: 15px;
+		background-color: #F7F7F2;
+   }
+	
+	#content-left	{	
+		text-indent: 10px;
+		font-size:14px;
+		width:470px;
+	    }
+
+    #content-right	{	
+		position: relative;
+		text-indent: 10px;
+		font-size:14px;
+		width:200px;
+	    }

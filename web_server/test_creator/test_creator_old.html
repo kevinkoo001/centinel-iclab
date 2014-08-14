@@ -1,0 +1,231 @@
+<html>
+
+<head>
+<title>Configurable Test Creator</title>
+<link rel="stylesheet" type="text/css" href="css/general_style.css" />
+</head>
+<body onload="javascript:onload()">
+<h1 align="Center"> <u> Configurable Test Creator</u> </h1>
+
+<div>
+<div id="maincontainer" style="center top no-repeat">
+<div id="content-left" align="justify">
+<font size="4">
+
+<script type="text/javascript">
+
+function create_experiment()
+{
+	
+}
+
+function stopRKey(evt) { 
+  var evt = (evt) ? evt : ((event) ? event : null); 
+  var node = (evt.target) ? evt.target : ((evt.srcElement) ? evt.srcElement : null); 
+  if ((evt.keyCode == 13) && (node.type=="text"))  {return false;} 
+} 
+
+function onload()
+{
+	document.getElementById("ping").checked = false;
+	document.getElementById("dns").checked = false;
+	document.getElementById("http").checked = false;
+	document.getElementById("traceroute").checked = false;
+	document.getElementById("tcp").checked = false;
+	document.getElementById("url_storage").value = "";
+	document.onkeypress = stopRKey;
+}
+
+function show_parameters()
+{
+	ping = document.getElementById("ping");
+	dns = document.getElementById("dns");
+	http = document.getElementById("http");
+	traceroute = document.getElementById("traceroute");
+	tcp = document.getElementById("tcp");
+	
+	if (ping.checked) 
+	{
+		document.getElementById("ping_parameters").style.display = "block";
+	}
+	else
+	{
+		document.getElementById("ping_parameters").style.display = "none";
+	}
+	if (dns.checked) 
+	{
+		document.getElementById("dns_parameters").style.display = "block";
+	}
+	else
+	{
+		document.getElementById("dns_parameters").style.display = "none";
+	}
+	if (http.checked) 
+	{
+		document.getElementById("http_parameters").style.display = "block";
+	}
+	else
+	{
+		document.getElementById("http_parameters").style.display = "none";
+	}
+	if (traceroute.checked) 
+	{
+		document.getElementById("traceroute_parameters").style.display = "block";
+	}
+	else
+	{
+		document.getElementById("traceroute_parameters").style.display = "none";
+	}
+	if (tcp.checked) 
+	{
+		document.getElementById("tcp_parameters").style.display = "block";
+	}
+	else
+	{
+		document.getElementById("tcp_parameters").style.display = "none";
+	}
+	}
+	
+	function add_url()
+	{
+		var textbox = document.getElementById("url_textbox");
+		var url = textbox.value;
+		
+		if (url.indexOf("!@:,,[],|||") > -1)
+		{
+			alert("Error: The url contains an illegal string");
+			return;
+		}
+		
+		textbox.value = "";
+		if (list_contains_url(url))
+		{
+			alert("Error: url list already contains " + url);
+			return; 
+		}
+		
+		if (url == "")
+		{
+			alert("Error: no url was entered");
+			return;
+		}
+		
+		
+		var list = document.getElementById("url_list");
+		button = "<input type=\"button\" value=\"-\" onclick=\"javascript:remove_url(" + ("\'" + url + "'") +  ")\"/>";
+		list.innerHTML += "<li id=\"" + "list_" + url + "\">" + url + "   " + button + "</li>";
+		
+		var storage = document.getElementById("url_storage");
+		storage.value += url + "!@:,,[],|||";
+		
+		/* var url_list = document.getElementById("url_list");
+		url_list.scrollTop = url_list.scrollHeight; */
+		
+	}
+
+	function remove_url(url)
+	{	
+		var id = "list_" + url;
+		var list = document.getElementById("url_list");
+		var listItem = list.getElementsByTagName("li");
+
+		for (var i = 0; i < listItem.length; i++)
+		{
+			if (listItem[i].id == id)
+			{
+				listItem[i].parentNode.removeChild(listItem[i]);
+				var text_storage = document.getElementById("url_storage").value;
+				split = text_storage.split("!@:,,[],|||");
+				var new_string = "";
+				for (x = 0; x < split.length - 1; x++)
+				{
+					if (split[x] != url)
+					{
+						new_string += split[x] + "!@:,,[],|||";
+					}
+					else
+					{
+					}
+				}
+				document.getElementById("url_storage").value = new_string;
+				break;
+			}
+		}
+	}
+	
+	function list_contains_url(url)
+	{	var id = "list_" + url;
+		var list = document.getElementById("url_list");
+		var listItem = list.getElementsByTagName("li");		
+		for (var i = 0; i < listItem.length; i++)
+		{
+			if (listItem[i].id == id)
+			{
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+
+</script>
+
+<br><br><b>Tests:</b><br><br> 
+	<form name="input" id="form" action="create_test.php" method="POST">
+	<input type="checkbox" id="ping" name="Ping" value="Ping" onclick="javascript:show_parameters()"> Ping <br> 
+	<div id="ping_parameters" style="display: none" align="left">
+		Packets: <input type="text" class="defaultTextBox" id="ping_packets" name="ping_packets" value="1" > <br>
+		&nbsp;&nbsp;Timeout (secs): <input type="text" class="defaultTextBox" id="ping_timeout" name="ping_timeout" value="3">
+		<hr style="height:1x; visibility:hidden;" />
+	</div>
+	<br>
+	&nbsp;&nbsp;<input type="checkbox" id="dns" name="Dns" value="Dns" onclick="javascript:show_parameters()"> DNS <br>
+	<div id="dns_parameters" style="display: none">
+		<br style="display:none">
+		Timeout (secs): <input type="text" class="defaultTextBox" id="dns_timeout" name="dns_timeout" value="3"> <br>
+		&nbsp;&nbsp;Record Type: <input type="text" class="defaultTextBox" id="dns_record" name="dns_record_type" value="A"> <br>
+		&nbsp;&nbsp;Resolver: <input type="text" class="defaultTextBox" id="dns_resolver" name="dns_resolver" value="8.8.8.8"> <br>
+		<hr style="height:1x; visibility:hidden;" />
+	</div>
+	<br>
+	&nbsp;&nbsp;<input type="checkbox" id="http" name="HTTP" value="HTTP" onclick="javascript:show_parameters()"> HTTP <br>
+	<div id="http_parameters" style="display: none">
+		<!--Http Parameters-->
+	</div>
+	<br>
+	&nbsp;&nbsp;<input type="checkbox" id="traceroute" name="Traceroute" value="Traceroute" onclick="javascript:show_parameters()"> Traceroute <br>
+	<div id="traceroute_parameters" style="display: none">
+		Timeout (secs): <input type="text" class="defaultTextBox" id="traceroute_timeout" name="traceroute_timeout" value="3"> <br>
+		&nbsp;&nbsp;Start_Hop: <input type="text" class="defaultTextBox" id="dns_start_hop" name="traceroute_start_hop" value="1"> <br>
+		&nbsp;&nbsp;Max_Hops: <input type="text" class="defaultTextBox" id="dns_max_hops" name="traceroute_max_hops" value="30"> <br>
+		<hr style="height:1x; visibility:hidden;" />
+	</div>
+	<br>
+	&nbsp;&nbsp;<input type="checkbox" id="tcp" name="TCP" value="TCP" onclick="javascript:show_parameters()"> TCP <br>
+	<div id="tcp_parameters" style="display: none">
+		Port: <input type="text" class="defaultTextBox" id="tcp_port" name="tcp_port" value="80"> <br>
+		<hr style="height:1x; visibility:hidden;" />
+	</div>
+	<br>
+	
+	<input type="text" name="url_storage" id="url_storage" style="display:none"/>
+	
+	</div>
+	Url list: <br> <input type="text" class="defaultTextBox" id="url_textbox" name="urlList" value="" onkeydown="if (event.keyCode == 13) add_url()" >
+	<input type="button" value="Add Url" onclick="javascript:add_url()"/>
+	<!-- <input type="file" name="txt_list" value="Read from file"> -->
+	<br>
+	<!-- style="height:100px; width:350px; overflow-x:hidden; overflow-y:auto" -->
+	<ul id="url_list"></ul>
+</div>
+<div align="Center">
+	<input type="submit" value="Create" onclick="javascript:create_experiment()"/>
+</div>
+</div>
+</font>
+</form>
+<br>
+<div id="footer" align="center"> ICLAB </div>
+</body>
+</html>
