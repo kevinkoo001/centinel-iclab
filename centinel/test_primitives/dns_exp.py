@@ -25,7 +25,7 @@ class ConfigurableDNSExperiment(Experiment):
         self.resolver = "8.8.8.8"
         self.record_types = []
         self.timeout = 15
-        self.second_record_timeout = 3
+        self.second_packet_timeout = 3
         self.url = ""
         self.rdclass = 1
         self.chaos_question = ""
@@ -59,6 +59,9 @@ class ConfigurableDNSExperiment(Experiment):
 
         if 'timeout' in self.args.keys():
             self.timeout = int(self.args['timeout'])
+
+        if 'second_packet_timeout' in self.args.keys():
+            self.second_packet_timeout = int(self.args['second_packet_timeout'])
 
         if 'class' in self.args.keys():
             self.rdclass = dns.rdataclass.from_text(self.args['class'])
@@ -110,7 +113,7 @@ class ConfigurableDNSExperiment(Experiment):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.bind(('', 8888))
-            sock.settimeout(self.second_record_timeout)
+            sock.settimeout(self.second_packet_timeout)
             sock.sendto(packet, (self.resolver, 53))
             received_first_packet = False
             try:
