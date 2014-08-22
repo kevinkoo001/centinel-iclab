@@ -7,13 +7,15 @@ import utils.http as http
 import base64
 import socket
 import time
-
+import pycurl
+import re
 from utils import logger
 from centinel.experiment import Experiment
 
 
 class ConfigurableHTTPRequestExperiment(Experiment):
     name = "config_http"
+    REDIRECT_LIMIT = 50
 
     def __init__(self, input_file):
         self.input_file = input_file
@@ -22,9 +24,16 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         self.path = "/"
         self.args = dict()
         self.ssl = False
-        self.headers = {}
         self.addHeaders = False
         self.url = ""
+
+        # These variables are class variables because they have to be accessed over multiple methods, including callback methods
+        self.headers = []
+        self.response_headers = dict()
+        self.response_body = ""
+        self.redirect_number = 0
+        self.result = {}
+        self.is_status_line = True
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -38,11 +47,11 @@ class ConfigurableHTTPRequestExperiment(Experiment):
             self.browser = self.args['browser']
             self.addHeaders = True
             if self.browser == "ie" or self.browser == "Internet Explorer":
-                self.headers["user-agent"] = "Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Win64; x64; Trident/5.0)"
+                self.headers.append("user-agent: Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; Win64; x64; Trident/5.0)")
             elif self.browser == "Firefox":
-                self.headers["user-agent"] = "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:16.0.1) Gecko/20121011 Firefox/16.0.1"
+                self.headers.append("user-agent: Mozilla/5.0 (Windows NT 6.2; WOW64; rv:16.0.1) Gecko/20121011 Firefox/16.0.1")
             elif self.browser == "Chrome" or self.browser == "Google Chrome":
-                self.headers["user-agent"] = "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.56 Safari/537.17"
+                self.headers.append("user-agent: Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.17 (KHTML, like Gecko) Chrome/24.0.1312.56 Safari/537.17")
         for key in self.args.keys():
             if key.startswith("header_"):
                 self.addHeaders = True
@@ -51,7 +60,8 @@ class ConfigurableHTTPRequestExperiment(Experiment):
                 split = key.split("header_")
                 for x in range(1, len(split)):  # Just in case there are any conflicts in the split or header name
                     header_key += split[x]
-                self.headers[header_key] = value
+                self.headers.append(header_key + ": " + value)
+
 
         url_list = parser.items('URLS')
 
@@ -60,7 +70,8 @@ class ConfigurableHTTPRequestExperiment(Experiment):
             self.path = '/'
             self.host, self.path = self.get_host_and_path_from_url(url)
             self.whole_url = url
-            self.http_request()
+            self.pycurl_http_request()
+            # self.http_request()
 
     def get_host_and_path_from_url(self, url):
         path = '/'
@@ -124,91 +135,82 @@ class ConfigurableHTTPRequestExperiment(Experiment):
         results["target_dns_success"] = str(target_dns_success)
         results["target_domain"] = target_domain
 
-    def http_request(self):
-        result = {"url": self.url}
-
-        self.dns_test(result)
-        # Make HTTP Request
-        start_time = time.time()
-        if self.addHeaders:
-            http_result = http.get_request(self.host, self.path, self.headers, self.ssl)
-            result["request_headers.b64"] = base64.b64encode(str(self.headers))
-        else:
-            http_result = http.get_request(self.host, self.path, ssl=self.ssl)
-        end_time = time.time()
-        all_redirects = []  # Contains dict("string", "string")
-        result["request_url"] = self.whole_url
-        result["host"] = self.host
-        result["request_path"] = self.path
-        result["request_method"] = http_result["request"]["method"]
-        # If no response was received...
-        if "body" not in http_result["response"]:
-            logger.log("e", "No HTTP Response from " + self.whole_url)
-            result["response_error_text"] = "No response"
-            self.results.append(result)
+    def handle_headers(self, buf):
+        if self.is_status_line:
+            m = re.match(r'HTTP\/\S*\s*\d+\s*(.*?)\s*$', buf.splitlines()[0])
+            if m:
+                status_message = "%s" % m.groups(1)  # Removes extra formatting in string
+                self.response_headers["Reason"] = status_message  # Store the status message as another header
+            self.is_status_line = False
             return
+        split = buf.splitlines()
+        for line in split:
+            if ": " not in line:  # If can't be split into header/value
+                continue
+            header_value_split = line.split(": ")
+            header = header_value_split[0]
+            value = ""
+            for x in range(1, len(header_value_split)):  # In case there were more than one ': ' in the value...
+                value += header_value_split[x]
+            self.response_headers[header] = value
 
-        status = http_result["response"]["status"]
-        first_response = {}  # Will count as redirect 0
-        first_response["response_url"] = self.whole_url
-        first_response["response_number"] = 0
-        first_response["response_time_taken_seconds"] = end_time - start_time
-        headers = http_result["response"]["headers"]
-        headers["reason"] = http_result["response"]["reason"]  # Add reason to headers
-        first_response["response_headers.b64"] = base64.b64encode(str(headers))
-        first_response["response_status"] = str(http_result["response"]["status"])
-        first_response["response_body.b64"] = base64.b64encode(http_result["response"]["body"])
 
-        is_redirecting = str(status).startswith("3") and "location" in http_result["response"]["headers"]  # Check for redirects
-        if is_redirecting:
-            first_response["response_redirect_url"] = http_result["response"]["headers"]["location"]
-        all_redirects.append(first_response)
-        result["redirect"] = str(is_redirecting)
-        last_redirect = ""
-        redirect_number = 1
-        redirect_url = ""
-        if is_redirecting:
-            try:
+    def handle_body(self, body):
+        self.response_body += body
 
-                redirect_result = None
-                while redirect_result is None or (str(redirect_result["response"]["status"]).startswith("3") and "location" in redirect_result["response"]["headers"]):  # While there are more redirects...
-                    if redirect_number > 50:  # Break redirect after 50 redirects
-                        logger.log("i", "Breaking redirect loop. Over 50 redirects")
-                        break
-                    if redirect_result is None:
-                        redirect_url = http_result["response"]["headers"]["location"]
-                    else:
-                        redirect_url = redirect_result["response"]["headers"]["location"]
-                    ssl = redirect_url.startswith("https://")
-                    if redirect_url == last_redirect:
-                        break
-                    if last_redirect == "":
-                        logger.log("i", "Redirecting from " + self.whole_url + " to " + redirect_url)
-                    else:
-                        logger.log("i", "Redirecting from " + last_redirect + " to " + redirect_url)
-                    host, path = self.get_host_and_path_from_url(redirect_url)
-                    start_time = time.time()
-                    redirect_result = http.get_request(host, path, ssl=ssl)
-                    if "body" not in http_result["response"]:
-                        result["response_error_text"] = "No response from " + redirect_result
-                        raise Exception("No HTTP Response from " + redirect_url)
-                    end_time = time.time()
-                    temp_results = {}
-                    temp_results["response_url"] = redirect_url
-                    temp_results["response_number"] = redirect_number
-                    temp_results["response_time_taken_seconds"] = (end_time - start_time)
-                    headers = redirect_result["response"]["headers"]
-                    headers["reason"] = redirect_result["response"]["reason"]  # Add reason to headers
-                    temp_results["response_headers.b64"] = base64.b64encode(str(headers))
-                    temp_results["response_status"] = str(redirect_result["response"]["status"])
-                    temp_results["response_body.b64"] = base64.b64encode(redirect_result["response"]["body"])
-                    if "location" in redirect_result["response"]["headers"] and str(redirect_result["response"]["status"]).startswith("3"):
-                        temp_results["response_redirect_url"] = redirect_result["response"]["headers"]["location"]
-                    last_redirect = redirect_url
-                    redirect_number += 1
-                    all_redirects.append(temp_results)
-            except Exception as e:
-                logger.log("e", "Http redirect failed for " + redirect_url + " : " + str(e))
-        result["responses"] = all_redirects
-        result["total_redirects"] = str(redirect_number - 1)
-        self.results.append(result)
+    def write_curl_results(self, curl, last_url):
+        key = "redirect_" + str(self.redirect_number)
+        self.result[key] = dict()
+        self.result[key]["response_number"] = self.redirect_number
+        self.result[key]["response_status"] = str(curl.getinfo(pycurl.HTTP_CODE))
+        self.result[key]["response_headers.b64"] = base64.b64encode(str(self.response_headers))
+        self.result[key]["response_body.b64"] = base64.b64encode(self.response_body)
+        if last_url is None:
+            self.result[key]["response_url"] = self.whole_url
+        else:
+            self.result[key]["response_url"] = last_url
+        if "Location" in self.response_headers.keys():
+            self.result[key]["response_redirect_url"] = self.response_headers["Location"]
+
+
+
+    def pycurl_http_request(self):
+
+        self.result = {
+                  "url": self.url,
+                  "request_url": self.whole_url,
+                  "host": self.host,
+                  "request_path": self.path, }
+
+        self.dns_test(self.result)
+        self.response_headers.clear()  # Clear headers from previous tests
+
+        c = pycurl.Curl()
+        c.setopt(pycurl.URL, self.whole_url)
+        c.setopt(pycurl.FOLLOWLOCATION, 0)  # Do not automatically handle redirects. We want to record data every step of the way
+        c.setopt(pycurl.WRITEFUNCTION, self.handle_body)
+        c.setopt(pycurl.HEADERFUNCTION, self.handle_headers)
+        if self.addHeaders:
+            c.setopt(pycurl.HTTPHEADER, self.headers)
+
+        self.redirect_number = 0
+        last_url = None
+        while self.redirect_number == 0 or str(c.getinfo(pycurl.HTTP_CODE)).startswith("3"):
+            if self.redirect_number == self.REDIRECT_LIMIT:
+                logger.log("e", "Too many redirects... Breaking loop")
+                break
+            c.perform()
+            self.write_curl_results(c, last_url)
+            if str(c.getinfo(pycurl.HTTP_CODE)).startswith("3"):
+                c.setopt(pycurl.URL, self.response_headers["Location"])
+                if last_url is None:
+                    logger.log("i", "Redirecting from " + self.whole_url + " to " + self.response_headers["Location"])
+                else:
+                    logger.log("i", "Redirecting from " + last_url + " to " + self.response_headers["Location"])
+                last_url = self.response_headers["Location"]
+            self.response_headers.clear()  # Clear headers in case there are redirects
+            self.response_body = ""  # Clear response body for next field
+            self.is_status_line = True
+            self.redirect_number += 1
+        c.close()
+        self.results.append(self.result)
