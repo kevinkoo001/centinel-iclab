@@ -29,7 +29,6 @@ class client_conf:
 	    'server_certificate' : os.path.join(expanduser("~"), ".centinel/keys/server_cert.pem"),
 	    'client_public_rsa' : os.path.join(expanduser("~"), ".centinel/keys/client_public_rsa.pem"),
 	    'client_private_rsa' : os.path.join(expanduser("~"), ".centinel/keys/client_private_rsa.pem"),
-	    
 	    'timeout' : "20",
 	    'run_id' : "0",
 	    'client_tag' : "unauthorized"}
