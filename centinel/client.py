@@ -232,13 +232,8 @@ class ServerConnection:
 
 	    server_response = receive_fixed(self.serversocket, self.server_address, 1)
 
-<<<<<<< HEAD
-	    #conf.c['client_tag'] = new_identity
-            conf.set("client_tag",new_identity)
-=======
-	    #conf['client_tag'] = new_identity
 	    conf.set("client_tag",new_identity)
->>>>>>> master
+
 	    if server_response == "c":
 		log("s", "Server certificate download and handshake successful. New tag: " + new_identity)
 		conf.set("client_tag",new_identity)
