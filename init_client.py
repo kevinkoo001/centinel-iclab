@@ -38,6 +38,13 @@ if c.config_read:
 	print bcolors.OKBLUE + 'Nothing changed, exiting.' + bcolors.ENDC
 	exit(0)
 
+ans = raw_input("Do you want to keep experiment results after sending them to the server?")
+if ans.lower() == "yes" or ans.lower() == "y" or ans.lower() == "Y":
+    c.set("archive_sent_results", "1")
+else:
+    print "Experiment results will not be archived, you can change this by editing the configuration file at \"" + c["config_file"] + "\""
+c.update()
+
 retry = True
 done = True
 while retry:
@@ -65,9 +72,3 @@ if not done:
     print bcolors.FAIL + "Client not initialized!" + bcolors.ENDC
     exit(1)
 
-ans = raw_input("Do you want to keep experiment results after sending them to the server?")
-if ans.lower() == "yes" or ans.lower() == "y" or ans.lower() == "Y":
-    c.set("archive_sent_results", "1")
-else:
-    print "Experiment results will not be archived, you can change this by editing the configuration file at \"" + c["config_file"] + "\""
-c.update()
