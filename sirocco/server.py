@@ -497,6 +497,9 @@ class Server:
 		raise Exception("Initialization error: " + str(e))
 
 	    self.client_list.append(identity)
+	    id_file = open(os.path.join(conf["client_keys_dir"], identity), "w")
+	    id_file.write("")
+	    id_file.close()
 	    self.client_last_seen [identity] = ("", "")
 	    self.client_commands [identity] = "chill"
 	    self.client_exps [identity] = ""
