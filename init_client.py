@@ -39,6 +39,7 @@ if c.config_read:
 	exit(0)
 
 retry = True
+done = True
 while retry:
     try:
 	print bcolors.OKBLUE + 'Connecting to server...' + bcolors.ENDC
@@ -46,8 +47,10 @@ while retry:
 	if not serverconn.connect(do_login = False):
 	    raise Exception("Could not connect.")
 	serverconn.initialize_client()
+	done = True
 	retry = False
     except Exception as e:
+	done = False
 	print bcolors.FAIL + "Error initializing: " + str(e) + bcolors.ENDC
 	print bcolors.OKBLUE + "Want to retry? " + bcolors.ENDC
 	ans = raw_input()
@@ -56,5 +59,15 @@ while retry:
 	    retry = True
 	else:
 	    retry = False
-
 serverconn.disconnect()
+
+if not done:
+    print bcolors.FAIL + "Client not initialized!" + bcolors.ENDC
+    exit(1)
+
+ans = raw_input("Do you want to keep experiment results after sending them to the server?")
+if ans.lower() == "yes" or ans.lower() == "y" or ans.lower() == "Y":
+    c.set("archive_sent_results", "1")
+else:
+    print "Experiment results will not be archived, you can change this by editing the configuration file at \"" + c["config_file"] + "\""
+c.update()

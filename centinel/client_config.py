@@ -23,6 +23,7 @@ class client_conf:
 	    'keys_dir' : os.path.join(expanduser("~"), ".centinel/keys"),
 	    'confs_dir' : os.path.join(expanduser("~"), ".centinel/confs"),
 	    'results_archive_dir' : os.path.join(expanduser("~"), ".centinel/results_archive"),
+	    'archive_sent_results' : "0",
 	    'config_file' : os.path.join(expanduser("~"), ".centinel/confs/client_config.cfg"),
 	    'server_public_rsa' : os.path.join(expanduser("~"), ".centinel/keys/server_public_rsa.pem"),
 	    'server_certificate' : os.path.join(expanduser("~"), ".centinel/keys/server_cert.pem"),

@@ -8,10 +8,12 @@ import struct
 import random
 import socket
 import base64
+import dns
 import dns.rdatatype
 from centinel.experiment import Experiment
 from utils import logger
 from dns import reversename
+
 
 class ConfigurableDNSExperiment(Experiment):
     name = "config_dns"
@@ -22,8 +24,11 @@ class ConfigurableDNSExperiment(Experiment):
         self.args = dict()
         self.resolver = "8.8.8.8"
         self.record_types = []
-        self.timeout = 3
+        self.timeout = 15
+        self.second_record_timeout = 3
         self.url = ""
+        self.rdclass = 1
+        self.chaos_question = ""
 
     def run(self):
         parser = ConfigParser.ConfigParser()
@@ -35,6 +40,9 @@ class ConfigurableDNSExperiment(Experiment):
 
         if 'resolver' in self.args.keys():
             self.resolver = self.args['resolver']
+
+        if 'chaos_question' in self.args.keys():
+            self.chaos_question = self.args['chaos_question']
 
         if 'record_types' in self.args.keys():
             record = self.args['record_types']
@@ -51,6 +59,9 @@ class ConfigurableDNSExperiment(Experiment):
 
         if 'timeout' in self.args.keys():
             self.timeout = int(self.args['timeout'])
+
+        if 'class' in self.args.keys():
+            self.rdclass = dns.rdataclass.from_text(self.args['class'])
 
         url_list = parser.items('URLS')
         for url in url_list[0][1].split():
@@ -99,7 +110,7 @@ class ConfigurableDNSExperiment(Experiment):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.bind(('', 8888))
-            sock.settimeout(self.timeout)
+            sock.settimeout(self.second_record_timeout)
             sock.sendto(packet, (self.resolver, 53))
             received_first_packet = False
             try:
@@ -126,9 +137,6 @@ class ConfigurableDNSExperiment(Experiment):
         if sock is not None:
             sock.close()
 
-
-
-
     def dns_test(self):
         record_type_string = ""
         for x in range(0, len(self.record_types)):
@@ -141,7 +149,8 @@ class ConfigurableDNSExperiment(Experiment):
             "host": self.host,
             "resolver": self.resolver,
             "record_types": record_type_string,
-            "timeout": self.timeout
+            "timeout": self.timeout,
+            "record_class": self.rdclass
         }
 
         result["records"] = dict()
@@ -153,7 +162,6 @@ class ConfigurableDNSExperiment(Experiment):
                 try:
                     addr = reversename.from_address(self.host)  # Get address
                     answers = dns.resolver.query(addr, "PTR")  # Query PTR Records
-                    result["record_type"] = "PTR"
                     for i in answers.response.answer:
                         logger.log("s", i.to_text())
                         dns_records.append(i.to_text())  # Add the record to the list
@@ -162,8 +170,19 @@ class ConfigurableDNSExperiment(Experiment):
                     ans += "Error (" + str(e) + ")" + "; "
             else:
                 try:
-                    query = dns.message.make_query(self.host, record_type)
-                    response = dns.query.udp(query, self.resolver, timeout=self.timeout)  # Get the response of the query
+                    if self.rdclass == 3:
+                        result["chaos_query_question"] = self.chaos_question
+                        if not self.isIp(self.host):
+                            ip = socket.gethostbyname(self.host)
+                        else:
+                            ip = self.host
+                        query = dns.message.make_query(self.chaos_question, "TXT", rdclass=self.rdclass)
+                        response = dns.query.udp(query, ip, timeout=self.timeout)  # Get the response of the query
+                    else:
+                        query = dns.message.make_query(self.host, record_type, rdclass=self.rdclass)
+                        query.flags |= dns.flags.RD  # Desire recursion
+                        query.find_rrset(query.additional, dns.name.root, self.rdclass, dns.rdatatype.OPT, create=True, force_unique=True)
+                        response = dns.query.udp(query, self.resolver, timeout=self.timeout)  # Get the response of the query
                     for answer in response.answer:
                         if "\n" in answer.to_text():  # Sometimes these records are separated by newlines in one answer
                             for resp in answer.to_text().split("\n"):
@@ -183,15 +202,14 @@ class ConfigurableDNSExperiment(Experiment):
                 if len(dns_records) == 0:
                     ans += record_type + " records unavailable for " + self.host + "; "
 
-
             result["records"][record_type]["dns_records"] = dns_records
             result["records"][record_type]['records_received'] = len(dns_records)
 
         if ans != "":
             ans = ans[:-2]  # Remove extra semicolon and space
-        result["error_text"] = ans
-        if ans != "":
             logger.log("i", ans)
+        result["error_text"] = ans
+
         self.test_for_second_packet(result)
 
         self.results.append(result)

@@ -1,0 +1,174 @@
+<html>
+<head>
+<title>Results Displayer</title>
+<link rel="stylesheet" type="text/css" href="css/general_style.css" />
+</head>
+<body onload="javascript:onload()">
+<script type="text/javascript">
+
+if (window.XMLHttpRequest)
+{   // code for IE7+, Firefox, Chrome, Opera, Safari
+    xml_client=new XMLHttpRequest();
+}
+else
+{	// code for IE6, IE5
+    xml_client=new ActiveXObject("Microsoft.XMLHTTP");
+}
+
+
+function load_experiments()
+{
+	xml_client.onreadystatechange=function()    
+    {
+        if (xml_client.readyState==4 && xml_client.status==200)
+    	{
+    	    if(xml_client.responseText == "Error")
+    	    {
+				alert("Error");
+				return;
+    	    }
+			document.getElementById("experiment").innerHTML = xml_client.responseText;
+	}
+    }
+	
+	var e = document.getElementById("client_tag");
+	var client_tag = e.options[e.selectedIndex].value;
+	args = "info=experiments&client_tag=" + client_tag;
+    xml_client.open("POST","information_retriever.php",true);
+    xml_client.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xml_client.send(args);
+}
+
+
+function load_run_ids()
+{
+	xml_client.onreadystatechange=function()    
+    {
+        if (xml_client.readyState==4 && xml_client.status==200)
+    	{
+    	    if(xml_client.responseText == "Error")
+    	    {
+				alert("Error");
+				return;
+    	    }
+			document.getElementById("run_id").innerHTML = xml_client.responseText;
+	}
+    }
+	
+	var e = document.getElementById("client_tag");
+	var client_tag = e.options[e.selectedIndex].value;
+	var d = document.getElementById("experiment");
+	var experiment = d.options[d.selectedIndex].value;
+	args = "info=ids&client_tag=" + client_tag + "&experiment=" + experiment;
+    xml_client.open("POST","information_retriever.php",true);
+    xml_client.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xml_client.send(args);
+}
+
+function on_experiment_selected()
+{
+	load_run_ids();
+}
+
+function on_client_tag_selected() 
+{
+	load_experiments();
+	document.getElementById("run_id").innerHTML = "";
+}
+
+function load_client_tags() 
+{
+  
+  xml_client.onreadystatechange=function()    
+    {
+        if (xml_client.readyState==4 && xml_client.status==200)
+    	{
+    	    if(xml_client.responseText == "Error")
+    	    {
+				alert("Error");
+				return;
+    	    }
+			document.getElementById("client_tag").innerHTML = xml_client.responseText;
+	}
+    }
+	
+	args = "info=clienttags";
+    xml_client.open("POST","information_retriever.php",true);
+    xml_client.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xml_client.send(args);
+	
+}
+
+function loadJSON()
+{
+	xml_client.onreadystatechange=function()    
+    {
+        if (xml_client.readyState==4 && xml_client.status==200)
+    	{
+    	    if(xml_client.responseText == "Error")
+    	    {
+				alert("Error");
+				return;
+    	    }
+			document.getElementById("json_text").value = xml_client.responseText;
+	}
+    }
+	
+
+	var c = document.getElementById("run_id");
+	var filepath = c.options[c.selectedIndex].getAttribute("name");
+	args = "info=json&path=" + filepath + "&html=" + document.getElementById("display_html").checked + "&dns=" + document.getElementById("decode_dns").checked;
+    xml_client.open("POST","information_retriever.php",true);
+    xml_client.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xml_client.send(args);
+}
+
+function on_run_id_selected() {
+	loadJSON();
+}
+
+function onload()
+{
+	document.getElementById("display_html").checked = true;
+	document.getElementById("decode_dns").checked = false;
+	load_client_tags();
+}
+
+function on_option_changed()
+{
+	var c = document.getElementById("run_id");
+	if (c.options.length > 0)
+	{
+		if(c.options[c.selectedIndex].getAttribute("name") != "null")
+		{
+			loadJSON();
+		}
+	}
+}
+</script>
+
+<div align="Center"><u>Results Displayer</u></div>
+<br>
+<div align="Center">
+
+Client Tag: <select name="client_tag" id="client_tag" onchange="javascript:on_client_tag_selected()"> </select>
+Experiment: <select name="experiment" id="experiment" onchange="javascript:on_experiment_selected()"> </select>
+Run Id: <select name="run_id" id="run_id" onchange="javascript:on_run_id_selected()"> </select>
+<font size="2">
+<table style="display:inline">
+<tr>
+<td><input type="checkbox" name="display_html" id="display_html" onchange="javascript:on_option_changed()" value="on">Display HTML Code</td>
+</tr>
+<tr>
+<td><input type="checkbox" name="decode_dns" id="decode_dns" onchange="javascript:on_option_changed()" value="on">Decode Base64 DNS packets </td>
+</table>
+</font>
+<br>
+<br>
+<br>
+<textarea readonly rows="35" cols="120" id="json_text">
+</textarea>
+</div>
+</body>
+
+</html>
