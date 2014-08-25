@@ -414,7 +414,7 @@ class ServerConnection:
 		log("i", "Updating experiment data files...")
 		while i > 0:
 		    try:
-			exp_data_name = receive_dyn(self.serversocket, self.server_address, show_progress = False)
+			exp_data_name = receive_dyn(self.serversocket, self.server_address)
 			exp_data_content = receive_md5_checked(self.serversocket, self.server_address, show_progress = True)
 			f = open(os.path.join(conf['experiment_data_dir'], exp_data_name), "w")
 			f.write(exp_data_content)
