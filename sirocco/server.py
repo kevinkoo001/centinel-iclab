@@ -32,7 +32,8 @@ import requests
 import json
 import pprint
 import base64
-
+from OpenSSL import SSL
+import M2Crypto
 
 conf = server_conf()
 
@@ -70,8 +71,34 @@ class Server:
 	self.client_exps = dict((c, []) for c in self.client_list)
 	self.client_last_seen = dict((c, ("", "nowhere")) for c in self.client_list)
 
+    def verify_cb(conn, certX509, errnum, depth, ok):
+	# print 'Certificate: %s' % cert.get_subject()
+	print "Certificate Info: "
+	print "\tIssuer: " + str(certX509.get_issuer())
+	#print "\tPublic Key: " + binascii.hexlify(certX509.get_pubkey())
+	print "\tSerial Number: " + str(certX509.get_serial_number())
+	print "\tSignature Algorithm: " + str(certX509.get_signature_algorithm())
+	print "\tVersion: " + str(certX509.get_version())
+	print "\tValid Not Before: " + str(certX509.get_notBefore())
+	print "\tValid Not After: " + str(certX509.get_notAfter())
+	print "\tVerification: " + str(certX509.digest("sha1"))
+	return ok
+
+    def get_client_cert(tag):
+	try:
+	    received_client_cert = ssl.DER_cert_to_PEM_cert(self.serversocket.getpeercert(True))
+	
+	    x509 = M2Crypto.X509.load_cert_string(received_client_cert)
+	    log("w", "Client certificate details: " + pprint.pformat(x509.get_subject().as_text()))
+
+	    of = open(conf["client_keys_dir"] + "tag", "w")
+	    of.write(received_client_cert)
+	    of.close()
+		
+	except Exception as e:
+	    raise Exception("Can not write client certificate: " + str(e))
     """
-    This runs ths server daemon.
+    This runs the server daemon.
 	Each connection is handled in a separate thread.
 	Keyboard and system interrupts are catched and dealt with 
 	to ensure smooth and clean shutdown of the server.
@@ -104,7 +131,29 @@ class Server:
 		#TLS wrap
 		if not self.disable_tls:
 		    try:
-			clientsocket = ssl.wrap_socket(newsocket, server_side=True, certfile=conf["server_certificate"], keyfile=conf["server_key"], ssl_version=ssl.PROTOCOL_TLSv1)
+			# clientsocket = ssl.wrap_socket(newsocket, server_side=True, certfile=conf["server_certificate"], keyfile=conf["server_key"], ssl_version=ssl.PROTOCOL_TLSv1)
+			
+			'''
+			Initialize context
+			Default ciphers for TLS version 1 are: 
+				DES-CBC3-SHA, DES-CDC-SHA, RC4-MD5, RC4-SHA, AES128-SHA, AES256-SHA
+			'''
+			ctx = SSL.Context(SSL.TLSv1_2_METHOD)
+			ctx.set_options(SSL.OP_NO_SSLv2)		# the option to avoid vulnerable SSLv2
+			ctx.set_options(SSL.OP_SINGLE_DH_USE)
+			# ctx.set_options(SSL.OP_SINGLE_ECDH_USE)	# the option to use secure elliptic curve Diffie-Hellman key exchange setups
+			# ctx.set_tmp_ecdh(OpenSSL.crypto.get_elliptic_curve())
+			ctx.set_options(SSL.OP_NO_COMPRESSION)	# the option to be able to address the CRIME attack
+			ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, verify_cb) # Demand a certificate
+			ctx.use_privatekey_file(open(conf['server_key']).read())
+			ctx.use_certificate_file(open(conf['server_certificate']).read())
+			ctx.load_verify_locations(open(conf['client_keys_dir'] + username).read())
+			if ctx.check_privatekey() != None:
+				print "The private key does NOT match the server's certificate!!"
+			ctx.set_cipher_list('AES256-SHA')
+			
+			clientsocket = SSL.Connection(ctx, sock)
+			
 		    except Exception as e:
 			log("e", "Error wrapping connection in TLS: " + str(e), address)
 			if newsocket:
@@ -339,6 +388,8 @@ class Server:
 
 		if unauthorized or (client_tag in self.client_list):
 		    if client_tag <> "unauthorized":
+			log("s", "Getting certification from client was successful", address = address, tag = client_tag)
+			get_client_cert(tag)
 			log("s", "Authentication successful.", address = address, tag = client_tag)
 			authenticated = True
 		    else:

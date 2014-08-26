@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from os.path import exists,isfile, join
 import socket, ssl, pprint
 import M2Crypto
+import binascii
 
 from utils.rsacrypt import RSACrypt
 from utils.aescrypt import AESCipher
@@ -25,6 +26,7 @@ from utils.logger import *
 from utils.netlib import *
 from client_config import client_conf
 from Crypto.Hash import MD5
+from OpenSSL import SSL
 
 conf = client_conf()
 
@@ -37,6 +39,19 @@ class ServerConnection:
 	self.connected = False
 	self.aes_secret = ""
 	
+    def verifyCallback(conn, certX509, errnum, depth, ok):
+	# print 'Certificate: %s' % cert.get_subject()
+	print "Certificate Info: "
+	print "\tIssuer: " + str(certX509.get_issuer())
+	#print "\tPublic Key: " + binascii.hexlify(certX509.get_pubkey())
+	print "\tSerial Number: " + str(certX509.get_serial_number())
+	print "\tSignature Algorithm: " + str(certX509.get_signature_algorithm())
+	print "\tVersion: " + str(certX509.get_version())
+	print "\tValid Not Before: " + str(certX509.get_notBefore())
+	print "\tValid Not After: " + str(certX509.get_notAfter())
+	print "\tVerification: " + str(certX509.digest("sha1"))
+	return ok
+	
     def connect(self, do_login = True):
 	if self.connected:
 	    return True
@@ -46,13 +61,35 @@ class ServerConnection:
 	    try:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		
-		self.serversocket = ssl.wrap_socket(s,
+		#self.serversocket = ssl.wrap_socket(s,
                     				    #ca_certs="/etc/ssl/certs/ca-certificates.crt",
                         			    #cert_reqs=ssl.CERT_REQUIRED,
-						    ssl_version=ssl.PROTOCOL_TLSv1
-    						   )
-
+		#				    ssl_version=ssl.PROTOCOL_TLSv1
+    	#					   )
+		'''
+		Initialize context
+		Default ciphers for TLS version 1 are: 
+			DES-CBC3-SHA, DES-CDC-SHA, RC4-MD5, RC4-SHA, AES128-SHA, AES256-SHA
+		'''
+		ctx = SSL.Context(SSL.TLSv1_2_METHOD)
+		ctx.set_options(SSL.OP_NO_SSLv2)		# the option to avoid vulnerable SSLv2
+		ctx.set_options(SSL.OP_SINGLE_DH_USE)
+		# ctx.set_options(SSL.OP_SINGLE_ECDH_USE)	# the option to use secure elliptic curve Diffie-Hellman key exchange setups
+		# ctx.set_tmp_ecdh(OpenSSL.crypto.get_elliptic_curve())
+		ctx.set_options(SSL.OP_NO_COMPRESSION)	# the option to be able to address the CRIME attack
+		ctx.set_verify(SSL.VERIFY_PEER, self.verifyCallback) # Demand a certificate
+		
+		ctx.use_privatekey_file(open(conf['client_key']).read())
+		ctx.use_certificate_file(open(conf['client_certificate']).read())
+		ctx.load_verify_locations(open(conf['server_certificate']).read())
+		if ctx.check_privatekey() != None:
+			print "The private key does NOT match the certificate!!"
+		ctx.set_cipher_list('AES256-SHA')
+		
+		self.serversocket = SSL.Connection(ctx, s)
 		self.serversocket.connect((address, self.server_port))
+		self.serversocket.do_handshake()
+		
 		self.connected = True
 		self.server_address = [ address, self.server_port ]
 		break

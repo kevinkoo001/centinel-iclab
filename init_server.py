@@ -32,7 +32,7 @@ try:
     open(sco['private_rsa_file'], "w").write(cr.private_key_string())
     create_self_signed_cert(sco['server_certificate'], sco['server_key'])
 except:
-    print bcolors.FAIL + "Error writing keys." + bcolors.ENDC
+    print bcolors.FAIL + "Error writing server keys." + bcolors.ENDC
     exit(1)
 
 print bcolors.OKGREEN + "Server keys created successfully." + bcolors.ENDC

@@ -31,7 +31,9 @@ class client_conf:
 	    'client_private_rsa' : os.path.join(expanduser("~"), ".centinel/keys/client_private_rsa.pem"),
 	    'timeout' : "20",
 	    'run_id' : "0",
-	    'client_tag' : "unauthorized"}
+	    'client_tag' : "unauthorized",
+	    'client_certificate' : os.path.join(expanduser("~"), ".centinel/keys/TLS_client_cert.pem"),
+	    'client_key' : os.path.join(expanduser("~"), ".centinel/keys/TLS_client.key") }
     conf_file = ''
     def __init__(self):
 	self.parser = ConfigParser.ConfigParser()

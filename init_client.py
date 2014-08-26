@@ -7,6 +7,7 @@ from os.path import exists
 from centinel.client import ServerConnection
 from centinel.client_config import client_conf
 from utils.colors import bcolors
+from centinel.gen_client_cert import create_self_signed_cert
 
 c = client_conf()
 
@@ -45,6 +46,13 @@ else:
     print "Experiment results will not be archived, you can change this by editing the configuration file at \"" + c["config_file"] + "\""
 c.update()
 
+# CREATE CLIENT CERTIFICATION WHILE INTIALIZATION PROCESS
+try:
+    create_self_signed_cert(c['client_certificate'], c['client_key'], c["client_tag"])
+except:
+    print bcolors.FAIL + "Error writing client certificate." + bcolors.ENDC
+    exit(1)
+	
 retry = True
 done = True
 while retry:
