@@ -144,10 +144,10 @@ class Server:
 			# ctx.set_options(SSL.OP_SINGLE_ECDH_USE)	# the option to use secure elliptic curve Diffie-Hellman key exchange setups
 			# ctx.set_tmp_ecdh(OpenSSL.crypto.get_elliptic_curve())
 			ctx.set_options(SSL.OP_NO_COMPRESSION)	# the option to be able to address the CRIME attack
-			ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, verify_cb) # Demand a certificate
-			ctx.use_privatekey_file(open(conf['server_key']).read())
-			ctx.use_certificate_file(open(conf['server_certificate']).read())
-			ctx.load_verify_locations(open(conf['client_keys_dir'] + username).read())
+			ctx.set_verify(SSL.VERIFY_PEER | SSL.VERIFY_FAIL_IF_NO_PEER_CERT, self.verify_cb) # Demand a certificate
+			ctx.use_privatekey_file(conf['server_key'])
+			ctx.use_certificate_file(conf['server_certificate'])
+			ctx.load_verify_locations(conf['client_keys_dir'])
 			if ctx.check_privatekey() != None:
 				print "The private key does NOT match the server's certificate!!"
 			ctx.set_cipher_list('AES256-SHA')
@@ -389,7 +389,7 @@ class Server:
 		if unauthorized or (client_tag in self.client_list):
 		    if client_tag <> "unauthorized":
 			log("s", "Getting certification from client was successful", address = address, tag = client_tag)
-			get_client_cert(tag)
+			get_client_cert(client_tag)
 			log("s", "Authentication successful.", address = address, tag = client_tag)
 			authenticated = True
 		    else:

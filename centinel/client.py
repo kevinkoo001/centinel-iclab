@@ -79,9 +79,9 @@ class ServerConnection:
 		ctx.set_options(SSL.OP_NO_COMPRESSION)	# the option to be able to address the CRIME attack
 		ctx.set_verify(SSL.VERIFY_PEER, self.verifyCallback) # Demand a certificate
 		
-		ctx.use_privatekey_file(open(conf['client_key']).read())
-		ctx.use_certificate_file(open(conf['client_certificate']).read())
-		ctx.load_verify_locations(open(conf['server_certificate']).read())
+		ctx.use_privatekey_file(conf['client_key'])
+		ctx.use_certificate_file(conf['client_certificate'])
+		ctx.load_verify_locations(conf['server_certificate'])
 		if ctx.check_privatekey() != None:
 			print "The private key does NOT match the certificate!!"
 		ctx.set_cipher_list('AES256-SHA')
